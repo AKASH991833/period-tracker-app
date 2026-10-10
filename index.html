@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" id="theme-meta" content="#FFF6F9">
+<meta name="description" content="Gulabi - private period & health tracker. Data sirf aapke phone pe.">
+<title>Gulabi</title>
+<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cg fill='%23F86FA0'%3E%3Cellipse cx='15' cy='7.5' rx='4' ry='5.5'/%3E%3Cellipse cx='15' cy='22.5' rx='4' ry='5.5'/%3E%3Cellipse cx='7.5' cy='15' rx='5.5' ry='4'/%3E%3Cellipse cx='22.5' cy='15' rx='5.5' ry='4'/%3E%3C/g%3E%3Ccircle cx='15' cy='15' r='4.5' fill='%23FFD3E2'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="phone">
+
+  <!-- LOCK -->
+  <div class="screen" id="scr-lock">
+    <div class="center-wrap">
+      <div id="lock-normal">
+        <div style="text-align:center">
+          <svg width="54" height="54" viewBox="0 0 30 30" style="margin:0 auto"><g fill="#F86FA0"><ellipse cx="15" cy="7.5" rx="4" ry="5.5"/><ellipse cx="15" cy="22.5" rx="4" ry="5.5"/><ellipse cx="7.5" cy="15" rx="5.5" ry="4"/><ellipse cx="22.5" cy="15" rx="5.5" ry="4"/><ellipse cx="9.7" cy="9.7" rx="3.4" ry="4.6" transform="rotate(-45 9.7 9.7)"/><ellipse cx="20.3" cy="9.7" rx="3.4" ry="4.6" transform="rotate(45 20.3 9.7)"/><ellipse cx="9.7" cy="20.3" rx="3.4" ry="4.6" transform="rotate(45 9.7 20.3)"/><ellipse cx="20.3" cy="20.3" rx="3.4" ry="4.6" transform="rotate(-45 20.3 20.3)"/></g><circle cx="15" cy="15" r="4.5" fill="#FFD3E2"/></svg>
+          <h1 style="font-size:20px;font-weight:800;margin-top:10px">Gulabi locked hai</h1>
+          <p style="font-size:12.5px;color:var(--muted);margin-top:4px">Apna 4-digit PIN daalo</p>
+        </div>
+        <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
+        <div class="pinpad">
+          <button onclick="pinKey('1')">1</button><button onclick="pinKey('2')">2</button><button onclick="pinKey('3')">3</button>
+          <button onclick="pinKey('4')">4</button><button onclick="pinKey('5')">5</button><button onclick="pinKey('6')">6</button>
+          <button onclick="pinKey('7')">7</button><button onclick="pinKey('8')">8</button><button onclick="pinKey('9')">9</button>
+          <button onclick="pinKey('clr')" style="font-size:13px">Clear</button><button onclick="pinKey('0')">0</button><button onclick="pinKey('ok')" style="font-size:15px;color:var(--primary)">OK</button>
+        </div>
+      </div>
+      <div id="lock-calc" style="display:none">
+        <div class="calc-screen" id="calc-screen">0</div>
+        <div class="calc">
+          <button onclick="calcKey('C')" style="color:var(--primary)">C</button><button onclick="calcKey('(')">(</button><button onclick="calcKey(')')">)</button><button onclick="calcKey('/')">&divide;</button>
+          <button onclick="calcKey('7')">7</button><button onclick="calcKey('8')">8</button><button onclick="calcKey('9')">9</button><button onclick="calcKey('*')">&times;</button>
+          <button onclick="calcKey('4')">4</button><button onclick="calcKey('5')">5</button><button onclick="calcKey('6')">6</button><button onclick="calcKey('-')">&minus;</button>
+          <button onclick="calcKey('1')">1</button><button onclick="calcKey('2')">2</button><button onclick="calcKey('3')">3</button><button onclick="calcKey('+')">+</button>
+          <button onclick="calcKey('0')">0</button><button onclick="calcKey('.')">.</button><button onclick="calcKey('%')">%</button><button class="eq" onclick="calcKey('=')">=</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div class="screen" id="scr-onboarding">
+    <div class="center-wrap">
+      <div style="text-align:center;margin-bottom:18px">
+        <svg width="64" height="64" viewBox="0 0 30 30" style="margin:0 auto"><g fill="#F86FA0"><ellipse cx="15" cy="7.5" rx="4" ry="5.5"/><ellipse cx="15" cy="22.5" rx="4" ry="5.5"/><ellipse cx="7.5" cy="15" rx="5.5" ry="4"/><ellipse cx="22.5" cy="15" rx="5.5" ry="4"/><ellipse cx="9.7" cy="9.7" rx="3.4" ry="4.6" transform="rotate(-45 9.7 9.7)"/><ellipse cx="20.3" cy="9.7" rx="3.4" ry="4.6" transform="rotate(45 20.3 9.7)"/><ellipse cx="9.7" cy="20.3" rx="3.4" ry="4.6" transform="rotate(45 9.7 20.3)"/><ellipse cx="20.3" cy="20.3" rx="3.4" ry="4.6" transform="rotate(-45 20.3 20.3)"/></g><circle cx="15" cy="15" r="4.5" fill="#FFD3E2"/></svg>
+        <h1 style="font-size:26px;font-weight:800;color:var(--primary);margin-top:8px">Gulabi</h1>
+        <p style="font-size:13px;color:var(--muted);margin-top:4px">Aapka private period &amp; health saathi</p>
+      </div>
+      <div class="ob-card">
+        <h1>Shuru karein?</h1>
+        <p class="sub">Sirf 3 cheezein chahiye &mdash; 30 second ka kaam hai</p>
+        <label>Aapka naam (optional)</label>
+        <input id="ob-name" type="text" placeholder="Jaise: Priya" maxlength="20">
+        <label>Pichla period kab shuru hua tha?</label>
+        <input id="ob-lastp" type="date">
+        <label>Cycle kitne din ka hota hai? (average)</label>
+        <input id="ob-cycle" type="number" value="28" min="20" max="45">
+        <label>Period kitne din rehta hai?</label>
+        <input id="ob-plen" type="number" value="5" min="2" max="10">
+        <button class="btn-primary" onclick="finishOnboarding()">Shuru karo</button>
+        <div class="privacy-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4FAF82" stroke-width="2.4" stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          100% private &mdash; data sirf aapke phone pe, koi account nahi
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen" id="scr-home">
+    <div class="statusbar"><span id="sb-time">9:41</span><div class="icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4.5" y="4.5" width="3" height="7.5" rx="1"/><rect x="9" y="2" width="3" height="10" rx="1"/><rect x="13" y="0" width="3" height="12" rx="1" opacity=".35"/></svg><svg width="22" height="12" viewBox="0 0 24 12"><rect x="0.5" y="0.5" width="19" height="11" rx="3" fill="none" stroke="currentColor"/><rect x="2.5" y="2.5" width="13" height="7" rx="1.5" fill="currentColor"/><rect x="21" y="4" width="2.5" height="4" rx="1" fill="currentColor"/></svg></div></div>
+    <div class="header">
+      <div class="logo">
+        <svg width="30" height="30" viewBox="0 0 30 30"><g fill="#F86FA0"><ellipse cx="15" cy="7.5" rx="4" ry="5.5"/><ellipse cx="15" cy="22.5" rx="4" ry="5.5"/><ellipse cx="7.5" cy="15" rx="5.5" ry="4"/><ellipse cx="22.5" cy="15" rx="5.5" ry="4"/><ellipse cx="9.7" cy="9.7" rx="3.4" ry="4.6" transform="rotate(-45 9.7 9.7)"/><ellipse cx="20.3" cy="9.7" rx="3.4" ry="4.6" transform="rotate(45 20.3 9.7)"/><ellipse cx="9.7" cy="20.3" rx="3.4" ry="4.6" transform="rotate(45 9.7 20.3)"/><ellipse cx="20.3" cy="20.3" rx="3.4" ry="4.6" transform="rotate(-45 20.3 20.3)"/></g><circle cx="15" cy="15" r="4.5" fill="#FFD3E2"/></svg>
+        <span class="logo-text">Gulabi</span>
+      </div>
+      <button class="iconbtn" onclick="location.hash='#/settings'" aria-label="settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E2548A" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.4-1.4L13.7 2h-3.4l-.42 2.5a7 7 0 0 0-2.4 1.4l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .48.05.94.14 1.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.4 1.4l.42 2.5h3.4l.42-2.5a7 7 0 0 0 2.4-1.4l2.3 1 2-3.4-2-1.5c.09-.46.14-.92.14-1.4z"/></svg></button>
+    </div>
+    <div class="greet"><h1 id="greet-title">Namaste!</h1><p id="greet-date"></p></div>
+    <div class="notice" id="notice-bar" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg><span id="notice-text"></span></div>
+    <div class="ring-card">
+      <div class="ring-wrap">
+        <svg width="132" height="132" viewBox="0 0 132 132">
+          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9FBD"/><stop offset="1" stop-color="#E2548A"/></linearGradient></defs>
+          <circle cx="66" cy="66" r="56" fill="none" stroke="var(--primary-soft)" stroke-width="11"/>
+          <circle id="ring-arc" cx="66" cy="66" r="56" fill="none" stroke="url(#rg)" stroke-width="11" stroke-linecap="round" stroke-dasharray="351.8" stroke-dashoffset="200" transform="rotate(-90 66 66)"/>
+        </svg>
+        <div class="ring-center"><div class="day" id="ring-day">Day 1</div><div class="lbl" id="ring-len">of ~28-day cycle</div></div>
+      </div>
+      <div class="ring-info">
+        <h2 id="home-next"></h2>
+        <div class="sub" id="home-next-sub"></div>
+        <span class="range-pill" id="range-pill"></span>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip"><div class="t" style="color:var(--purple)">Ovulation</div><div class="v" id="chip-ovu"></div></div>
+      <div class="chip"><div class="t" style="color:var(--orange)">Fertile</div><div class="v" id="chip-fert"></div></div>
+      <div class="chip"><div class="t" style="color:var(--primary)">Cycle</div><div class="v" id="chip-cyc"></div></div>
+    </div>
+    <div class="section">
+      <h3>Aaj ka log</h3>
+      <div class="log-row">
+        <button class="log-btn" onclick="quickLog('period')"><div class="circle" style="background:var(--primary-soft)"><svg width="24" height="24" viewBox="0 0 24 24" fill="#E2548A"><path d="M12 2.7C12 2.7 5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.7 12 2.7z"/></svg></div><span>Period</span></button>
+        <button class="log-btn" onclick="quickLog('mood')"><div class="circle" style="background:var(--orange-soft)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F0A04B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.2 2 3.5 2 3.5-2 3.5-2"/><circle cx="9" cy="9.5" r=".9" fill="#F0A04B" stroke="none"/><circle cx="15" cy="9.5" r=".9" fill="#F0A04B" stroke="none"/></svg></div><span>Mood</span></button>
+        <button class="log-btn" onclick="quickLog('sym')"><div class="circle" style="background:var(--purple-soft)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B07FD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.7-9.5-9C1 8.5 3 5 6.5 5c2.2 0 3.9 1.3 5.5 3.4C13.6 6.3 15.3 5 17.5 5 21 5 23 8.5 21.5 12c-2 4.3-9.5 9-9.5 9z"/></svg></div><span>Symptoms</span></button>
+        <button class="log-btn" onclick="quickLog('note')"><div class="circle" style="background:var(--green-soft)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4FAF82" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><span>Notes</span></button>
+      </div>
+    </div>
+    <div class="ai-card">
+      <span class="tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><path d="M12 1.5l2.3 6.2 6.2 2.3-6.2 2.3L12 18.5l-2.3-6.2-6.2-2.3 6.2-2.3z"/></svg> AAJ KA TIP</span>
+      <p id="home-tip-text"></p>
+      <button class="btn" onclick="location.hash='#/tips'">Saare tips dekho</button>
+    </div>
+    <div class="week-card">
+      <div class="week-row" id="week-row"></div>
+      <div class="legend">
+        <span><i style="background:#FF6B93"></i> Period</span>
+        <span><i style="background:#FFB3C9"></i> Predicted</span>
+        <span><i style="background:#D9B8EC"></i> Fertile</span>
+        <span><i style="background:#B07FD4"></i> Ovulation</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="screen" id="scr-calendar">
+    <h1 class="page">Calendar</h1>
+    <p class="pagesub">Kisi bhi din pe tap karke log karo</p>
+    <div class="cal-card">
+      <div class="cal-head">
+        <button onclick="calNav(-1)">&lsaquo;</button>
+        <div class="m" id="cal-title"></div>
+        <button onclick="calNav(1)">&rsaquo;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <div class="week-card">
+      <div class="legend" style="margin-top:2px">
+        <span><i style="background:#FF6B93"></i> Period</span>
+        <span><i style="background:#FFB3C9"></i> Predicted period</span>
+        <span><i style="background:#D9B8EC"></i> Fertile</span>
+        <span><i style="background:#B07FD4"></i> Ovulation</span>
+        <span><i style="background:#F5C86B"></i> PMS</span>
+      </div>
+    </div>
+    <div class="hist-card" id="cal-history"></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="screen" id="scr-log">
+    <h1 class="page" id="log-date-title"></h1>
+    <p class="pagesub" id="log-date-sub"></p>
+    <div class="section"><h3>Flow</h3></div>
+    <div class="chipgrid" id="flow-row"></div>
+    <div class="section"><h3>Symptoms</h3></div>
+    <div class="chipgrid" id="sym-grid"></div>
+    <div class="section"><h3>Mood</h3></div>
+    <div class="chipgrid" id="mood-grid"></div>
+    <div class="section"><h3>Note</h3></div>
+    <div style="padding:0 22px"><textarea id="log-note" rows="3" placeholder="Aaj ke baare me kuch likhna ho..."></textarea></div>
+    <div class="savebar">
+      <button class="btn-primary" onclick="saveLog()">Save karo</button>
+      <button class="btn-ghost" onclick="clearLog()">Is din ka log clear karo</button>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  <div class="screen" id="scr-tips">
+    <h1 class="page">Health Tips</h1>
+    <p class="pagesub">Aapke cycle phase ke hisaab se</p>
+    <div class="bigtip">
+      <span class="tag" id="tip-phase"><svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><path d="M12 1.5l2.3 6.2 6.2 2.3-6.2 2.3L12 18.5l-2.3-6.2-6.2-2.3 6.2-2.3z"/></svg> AI TIP</span>
+      <p id="bigtip-text" style="font-size:14.5px"></p>
+      <div class="row">
+        <button class="btn" id="ai-tip-btn" onclick="aiTip()">Naya AI tip</button>
+      </div>
+    </div>
+    <div class="tipcat" id="tip-cats"></div>
+    <div class="tiplist" id="tip-list"></div>
+    <p class="ai-note">AI tips Gemini se aate hain aur sirf general wellness ke liye hain &mdash; koi bhi health problem ho toh doctor se zaroor milein.</p>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="scr-settings">
+    <h1 class="page">Settings</h1>
+    <p class="pagesub">Sab kuch aapke control me</p>
+    <div class="set-card">
+      <h4>Profile &amp; Cycle</h4>
+      <div class="set-row"><div>Naam</div><input id="set-name" type="text" placeholder="Optional" style="width:130px"></div>
+      <div class="set-row"><div>Average cycle<div class="s">din me (20-45)</div></div><input id="set-cycle" type="number" min="20" max="45" style="width:70px"></div>
+      <div class="set-row"><div>Period length<div class="s">din me (2-10)</div></div><input id="set-plen" type="number" min="2" max="10" style="width:70px"></div>
+      <div class="set-row"><div>Last period start</div><input id="set-lastp" type="date" style="width:150px"></div>
+      <div class="set-row"><div>Period reminder<div class="s">itne din pehle yaad dilaye</div></div><input id="set-remind" type="number" min="1" max="7" style="width:70px"></div>
+    </div>
+    <div class="set-card">
+      <h4>Privacy &amp; Security</h4>
+      <div class="set-row"><div>PIN lock<div class="s" id="pin-status"></div></div><div style="display:flex;gap:6px"><input id="set-pin" type="password" inputmode="numeric" maxlength="4" placeholder="4-digit" style="width:80px"><button class="opt sel" id="btn-setpin" style="white-space:nowrap">Set</button></div></div>
+      <div class="set-row"><div>PIN hatayo</div><button class="opt" id="btn-removepin">Remove</button></div>
+      <div class="set-row"><div>Disguise mode<div class="s">lock screen calculator jaisi dikhegi, naam bhi &quot;Calculator&quot;</div></div><button class="switch" id="sw-disguise"></button></div>
+    </div>
+    <div class="set-card">
+      <h4>Look</h4>
+      <div class="set-row"><div>Dark mode<div class="s">raat ke liye soft dark pink</div></div><button class="switch" id="sw-theme"></button></div>
+    </div>
+    <div class="set-card">
+      <h4>AI Tips (Gemini)</h4>
+      <div class="set-row"><div style="flex:1">API key<div class="s">sirf is phone pe save hoti hai, kahin upload nahi hoti. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--primary)">Free key yahan banao</a></div></div><input id="set-key" type="password" placeholder="AIza..." style="width:130px"></div>
+    </div>
+    <div class="set-card">
+      <h4>Data</h4>
+      <div class="set-row"><div>Backup download<div class="s">apna saara data JSON file me</div></div><button class="opt" id="btn-export">Export</button></div>
+      <div class="set-row"><div>Backup restore</div><label class="opt" style="margin:0">Import<input id="import-file" type="file" accept=".json" style="display:none"></label></div>
+      <div class="set-row"><div class="danger">Saara data delete karo</div><button class="opt danger" id="btn-erase" style="border-color:#F3C2C2">Delete</button></div>
+    </div>
+    <p class="ai-note">Gulabi v1.0 &mdash; predictions estimate hain, 100% guarantee nahi. Jitna regular log karogi, utna accurate hoga. Data kabhi cloud pe nahi jaata.</p>
+  </div>
+
+  <div class="navbar" id="navbar">
+    <button class="nav-item" data-route="home"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Home</button>
+    <button class="nav-item" data-route="calendar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/></svg>Calendar</button>
+    <button class="nav-item" data-route="log"><div class="nav-plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></button>
+    <button class="nav-item" data-route="tips"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l2.1 5.7 5.9.5-4.5 3.9 1.4 5.8L12 14.9 7.1 17.9l1.4-5.8L4 8.2l5.9-.5z"/></svg>Tips</button>
+    <button class="nav-item" data-route="settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.4-1.4L13.7 2h-3.4l-.42 2.5a7 7 0 0 0-2.4 1.4l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .48.05.94.14 1.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.4 1.4l.42 2.5h3.4l.42-2.5a7 7 0 0 0 2.4-1.4l2.3 1 2-3.4-2-1.5c.09-.46.14-.92.14-1.4z"/></svg>Settings</button>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+<script src="app.js"></script>
+<script>
+function quickLog(what){
+  try{ localStorage.setItem('gulabi_quicktab', what); }catch(e){}
+  location.hash='#/log';
+}
+</script>
+</body>
+</html>

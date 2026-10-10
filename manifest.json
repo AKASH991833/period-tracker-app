@@ -1,0 +1,10 @@
+{
+  "name": "Gulabi - Period & Health Tracker",
+  "short_name": "Gulabi",
+  "description": "Private period & health tracker. Data sirf aapke phone pe.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FFF6F9",
+  "theme_color": "#E2548A",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
