@@ -10,7 +10,7 @@ Ek **simple, private aur accurate** period & health tracker - girls ke liye, unk
 - **Color-coded calendar** - period, predicted period, fertile window, ovulation, PMS - sab alag colors me
 - **Daily log** - flow (light/medium/heavy), 12 symptoms, 8 moods, notes
 - **AI health tips** - Gemini API se personalized tips (cramps, diet, exercise, sleep, mood) - aapke current cycle phase ke hisaab se. Offline fallback tips bhi included.
-- **Privacy first** - 100% data sirf phone ke localStorage me. Koi account nahi, koi cloud nahi, koi tracking nahi.
+- **Privacy first** - tracking data 100% phone ke localStorage me. Koi account nahi, koi tracking nahi. AI tips optional hain: pehli use se pehle app clear permission leti hai, aur tab sirf limited cycle info (cycle day, phase, recent symptoms - kabhi period dates/notes/naam nahi) Google Gemini ko tip banane ke liye jati hai.
 - **PIN lock** + **Disguise mode** - lock screen ek working calculator jaisi dikhti hai, app ka naam "Calculator" ho jata hai. PIN type karke = dabao toh app khulti hai.
 - **Reminders** - period se pehle in-app reminder
 - **Dark mode** - soft dark pink theme
@@ -39,4 +39,4 @@ Pure HTML/CSS/JS - koi framework nahi, koi build step nahi. Static hosting pe ch
 
 ## Privacy
 
-Koi analytics nahi, koi server nahi. Data delete karna ho toh Settings > "Saara data delete karo" - bas, khatam.
+App ka koi apna server nahi, koi analytics nahi - tracking data phone se bahar nahi jaata. Sirf optional AI tips (aapki permission ke baad) limited cycle info Google Gemini API ko bhejti hain. Data delete karna ho toh Settings > "Saara data delete karo" - bas, khatam.

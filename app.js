@@ -8,7 +8,7 @@ const $$ = s => document.querySelectorAll(s);
 const DEFAULT_STATE = {
   onboarded: false, name: '', avgCycle: 28, periodLen: 5, lastPeriod: '',
   logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '',
-  reminderDays: 2, teenMode: false, createdAt: null
+  reminderDays: 2, teenMode: false, aiConsent: false, createdAt: null
 };
 let S = load();
 let unlocked = !S.pin;
@@ -465,9 +465,13 @@ function buildTipLib(){
     {cat:'mood',icon:I.heart,bg:'var(--primary-soft)',title:'Journal karo',body:'Notes me likhne se pattern samajh aata hai: kaunse din mood low hota hai, kya trigger hai. Next month prepared rahogi.'}
   ];
 }
+function showAiConsent(){ const m=$('#ai-consent'); if(m) m.style.display='flex'; }
+function hideAiConsent(){ const m=$('#ai-consent'); if(m) m.style.display='none'; }
+function aiConsentYes(){ S.aiConsent=true; save(); hideAiConsent(); aiTip(); }
 async function aiTip(){
   const btn = $('#ai-tip-btn');
   if(!S.geminiKey){ toast('Settings me Gemini API key add karo'); location.hash='#/settings'; return; }
+  if(!S.aiConsent){ showAiConsent(); return; }
   btn.textContent = 'Soch raha hai...'; btn.disabled = true;
   const p = predict();
   const recentSym = Object.keys(S.logs).sort().slice(-7).flatMap(d=>S.logs[d].symptoms||[]);
@@ -515,7 +519,8 @@ function bindSettings(){
   };
   $('#btn-removepin').onclick = ()=>{ S.pin=''; save(); renderSettings(); toast('PIN lock hata diya'); };
   $('#btn-export').onclick = ()=>{
-    const blob = new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+    const ex = Object.assign({}, S); delete ex.pin; delete ex.geminiKey;
+    const blob = new Blob([JSON.stringify(ex,null,2)],{type:'application/json'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='gulabi-backup.json'; a.click();
     toast('Backup download ho raha hai');
   };
@@ -619,6 +624,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(q.get('theme')) S.theme=q.get('theme');
   if(q.get('pin')){ S.pin=q.get('pin'); unlocked=false; }
   if(q.get('disguise')) S.disguise = q.get('disguise')==='1';
+  if(q.get('showconsent')==='1') setTimeout(showAiConsent, 300);
   applyTheme(); applyDisguise(); bindSettings(); applyNav();
   const st=$('#sb-time'); if(st){ const n=new Date(); st.textContent = ((n.getHours()%12)||12)+':'+String(n.getMinutes()).padStart(2,'0'); }
   const start = location.hash.replace('#/','') || 'home';
