@@ -8,7 +8,7 @@ const $$ = s => document.querySelectorAll(s);
 const DEFAULT_STATE = {
   onboarded: false, name: '', avgCycle: 28, periodLen: 5, lastPeriod: '',
   logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '',
-  reminderDays: 2, createdAt: null
+  reminderDays: 2, teenMode: false, createdAt: null
 };
 let S = load();
 let unlocked = !S.pin;
@@ -116,7 +116,7 @@ window.addEventListener('hashchange',()=>go(location.hash.replace('#/','')||'hom
 function render(route){
   $$('.screen').forEach(e=>e.classList.remove('active'));
   const nav = $('#navbar');
-  const withNav = ['home','calendar','log','tips','settings'];
+  const withNav = ['home','calendar','log','tips','settings','report','library'];
   nav.style.display = withNav.includes(route)?'flex':'none';
   $$('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.route===route));
   const el = $('#scr-'+route) || $('#scr-home');
@@ -126,6 +126,8 @@ function render(route){
   if(route==='log') renderLog();
   if(route==='tips') renderTips();
   if(route==='settings') renderSettings();
+  if(route==='report') renderReport();
+  if(route==='library') renderLibrary();
   if(route==='onboarding') renderOnboarding();
   if(route==='lock') renderLock();
 }
@@ -135,7 +137,7 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function renderHome(){
   const p = predict();
   const today = new Date();
-  $('#greet-title').textContent = S.name ? 'Namaste, '+S.name+'!' : 'Namaste!';
+  $('#greet-title').textContent = S.name ? 'Namaste, '+S.name+'!' : (S.teenMode ? 'Hi! Kaise ho?' : 'Namaste!');
   $('#greet-date').textContent = prettyDate(today)+' \u00b7 aapka din kaisa hai?';
   $('#ring-day').textContent = 'Day '+p.cycleDay;
   $('#ring-len').textContent = 'of ~'+p.avgR+'-day cycle';
@@ -162,6 +164,10 @@ function renderHome(){
   const nb = $('#notice-bar');
   if(p.daysLeft>0 && p.daysLeft<=S.reminderDays){ nb.style.display='flex'; $('#notice-text').textContent = 'Reminder: period ~'+p.daysLeft+' din me expected hai. Pads/essentials ready rakho.'; }
   else nb.style.display='none';
+  const inotes = irregularNote();
+  const ic = $('#irreg-card');
+  if(inotes.length){ ic.style.display='block'; $('#irreg-text').textContent = inotes[0]; }
+  else ic.style.display='none';
   renderWeek(p);
   renderHomeTip(p);
 }
@@ -226,7 +232,15 @@ const GENERAL_TIPS = [
   'Track karo: cramps kis din zyada hote hain \u2014 pattern dikhne lagega.',
   'Period ke dauraan bhi halka exercise safe aur helpful hai.'
 ];
+const TEEN_TIPS = [
+  'Pehle 1-2 saal cycle irregular rehta hai \u2014 ye normal hai, tension mat lo.',
+  'School bag me hamesha ek pad aur spare underwear rakho \u2014 emergency ready!',
+  'Period me bhi sports khel sakte ho \u2014 actually cramps kam hote hain.',
+  'Period ke baare me baat karna sharmane wali baat NAHI hai. Mummy/didi se khul ke poocho.',
+  'Cramps ho toh hot water bag + thoda rest \u2014 aur ye bilkul okay hai.'
+];
 function localTip(p){
+  if(S.teenMode){ return TEEN_TIPS[Math.floor(Date.now()/86400000)%TEEN_TIPS.length]; }
   const ph = phaseOf(p);
   const arr = TIPS[ph]||GENERAL_TIPS;
   const dayIdx = Math.floor(Date.now()/86400000);
@@ -254,6 +268,7 @@ function renderCalendar(){
     else dot='<span class="dot" style="background:transparent"></span>';
     grid.innerHTML += '<button class="'+cls+'" onclick="openDay(\''+ds+'\')">'+d+dot+'</button>';
   }
+  renderInsights();
   // cycle history
   const p = predict();
   const hist = $('#cal-history'); hist.innerHTML='<h4 style="padding:14px 16px 4px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--faint)">Cycle history</h4>';
@@ -266,6 +281,95 @@ function renderCalendar(){
   });
 }
 function openDay(ds){ logDate=ds; location.hash='#/log'; }
+
+/* ---------------- INSIGHTS (symptom trends) ---------------- */
+function renderInsights(){
+  const el = $('#insights-card'); if(!el) return;
+  const since = addDays(stripTime(new Date()), -90);
+  const counts = {}; let loggedDays = 0;
+  Object.keys(S.logs).forEach(ds=>{
+    if(fromStr(ds) < since) return;
+    const l = S.logs[ds]; if(!l) return;
+    loggedDays++;
+    (l.symptoms||[]).forEach(x=> counts[x]=(counts[x]||0)+1);
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  let h = '<h4 style="padding:14px 16px 4px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--faint)">Symptom trends (90 din)</h4>';
+  if(top.length===0){ h += '<div class="hist-row"><span class="s">Symptoms log karo \u2014 yahan pattern dikhega</span></div>'; }
+  else{
+    const mx = top[0][1];
+    top.forEach(([name,c])=>{
+      const pct = Math.round(c/mx*100);
+      h += '<div class="hist-row" style="display:block"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600"><span>'+name+'</span><span class="s">'+c+' din</span></div><div style="height:6px;border-radius:4px;background:var(--primary-soft);margin-top:5px"><div style="height:6px;border-radius:4px;width:'+pct+'%;background:linear-gradient(90deg,var(--primary2),var(--primary))"></div></div></div>';
+    });
+    h += '<div class="hist-row"><span class="s">Doctor ko dikhane ke liye: neeche "Doctor report" banao</span></div>';
+  }
+  el.innerHTML = h;
+}
+
+/* ---------------- IRREGULAR CYCLE GUIDANCE ---------------- */
+function irregularNote(){
+  const st = cycleStats();
+  const notes = [];
+  if(st.count>=2 && st.sd>=7) notes.push('Aapke cycles ka variation zyada hai (\u00b1'+Math.round(st.sd)+' din). Stress, weight change, travel ya hormones se hota hai. 2-3 mahine tak aisa rahe toh ek baar gynecologist se milna theek rahega.');
+  if(st.count>=1 && st.avg>35) notes.push('Average cycle '+st.avgR+' din ka hai \u2014 35 din se zyada ko irregular maana jata hai. PCOS jaise common causes ho sakte hain; doctor se consult karna helpful rahega.');
+  if(st.count>=1 && st.avg<21) notes.push('Average cycle '+st.avgR+' din ka hai \u2014 21 din se kam frequent hai. Ek baar doctor se check karwana better rahega.');
+  return notes;
+}
+
+/* ---------------- DOCTOR REPORT ---------------- */
+function renderReport(){
+  const p = predict();
+  const fmt = d => d.getDate()+' '+HI_MONTHS[d.getMonth()]+' '+d.getFullYear();
+  $('#rep-date').textContent = 'Generated: '+fmt(new Date());
+  $('#rep-summary').innerHTML =
+    '<div class="rep-grid"><div><b>'+p.count+'</b><span>logged cycles</span></div>'+
+    '<div><b>~'+p.avgR+' din</b><span>avg cycle</span></div>'+
+    '<div><b>'+(S.periodLen||5)+' din</b><span>avg period</span></div>'+
+    '<div><b>\u00b1'+p.sd+' din</b><span>variation</span></div></div>';
+  const reg = p.count<2 ? 'Abhi data kam hai \u2014 2-3 cycles ke baad pattern clear hoga.' : (p.sd>=7 ? 'Cycles irregular lag rahe hain (variation zyada).' : 'Cycles regular range me hain.');
+  $('#rep-reg').textContent = reg;
+  const notes = irregularNote();
+  $('#rep-flags').innerHTML = notes.length ? '<b>Notes for doctor:</b><ul style="margin:6px 0 0 18px">'+notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>' : '';
+  let rows='';
+  const starts = p.starts.slice(-6).reverse();
+  starts.forEach((st,i)=>{
+    const idx = p.starts.length-1-i;
+    const len = idx>0 ? diffDays(p.starts[idx-1], p.starts[idx]) : null;
+    const symCount = {};
+    for(let d=0; d<(len||p.avgR); d++){
+      const l = S.logs[toStr(addDays(st,d))];
+      if(l) (l.symptoms||[]).forEach(x=> symCount[x]=(symCount[x]||0)+1);
+    }
+    const tops = Object.entries(symCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join(', ');
+    rows += '<tr><td>'+fmt(st)+'</td><td>'+(len? len+' din':'\u2014')+'</td><td>'+(tops||'\u2014')+'</td></tr>';
+  });
+  $('#rep-rows').innerHTML = rows || '<tr><td colspan="3">Koi cycle logged nahi</td></tr>';
+}
+function printReport(){ window.print(); }
+
+/* ---------------- HEALTH LIBRARY ---------------- */
+const LIBRARY = [
+ {t:'Period 101: kya hota hai?', c:'Har month uterus apni lining banata hai possible pregnancy ke liye. Jab pregnancy nahi hoti, lining bahar nikalti hai \u2014 yehi period hai. 21-35 din ka cycle normal hai. Pehle 1-2 saal (teen years) me irregular hona bilkul normal hai.'},
+ {t:'Cramps kyon hote hain?', c:'Prostaglandins naam ke chemicals uterus ko contract karwate hain \u2014 isi se cramps. Heat (hot water bag), halka exercise, ajwain/adrak wala garam paani, aur magnesium-rich khana (nuts, banana, dark chocolate) sabse effective hain. Bahut zyada dard ho jo kaam na karne de, toh doctor se milein \u2014 endometriosis jaise reasons ho sakte hain.'},
+ {t:'PMS samjho', c:'Period se 5-7 din pehle mood swings, bloating, cravings, irritability \u2014 ye PMS hai, hormones ki wajah se. Regular sleep, kam namkeen/caffeine, complex carbs aur halka exercise se 50-70% tak relief milta hai. PMDD (bahut severe PMS) ho toh doctor se baat karo.'},
+ {t:'Hygiene basics', c:'Pad har 4-6 ghante me badlo, menstrual cup 8-12 ghante me. Hamesha front-to-back wipe. Scented products avoid karo \u2014 vagina self-cleaning hoti hai. Itching, unusual discharge ya badbu ho toh doctor se milein.'},
+ {t:'Irregular cycles & PCOS signs', c:'Cycle 35+ din ka ho, mahine skip ho, ya bahut heavy bleeding ho \u2014 common causes: stress, thyroid, PCOS, weight change. PCOS ke signs: irregular periods + acne/facial hair + weight gain. 2-3 mahine irregular rahe toh gynecologist visit karo \u2014 early checkup se sab manageable hai.'},
+ {t:'Kab doctor se milna chahiye (warning signs)', c:'Ye signs ho toh doctor visit delay mat karo: (1) 3+ mahine period na aaye (pregnancy nahi hai toh bhi), (2) bleeding 7+ din chale ya bahut heavy ho (1-2 ghante me pad bhare), (3) periods ke beech bleeding, (4) severe pain jo normal na lage, (5) fever ke saath period symptoms, (6) unusual discharge ya smell.'},
+ {t:'Pehla period? (teen guide)', c:'Pehla period 10-15 saal me aata hai \u2014 ghabrane wali baat nahi, ye healthy hai! Shuru ke 1-2 saal irregular rahega. School bag me hamesha ek pad rakho. Kisi trusted adult (mummy, didi, teacher) se baat karo \u2014 sharmane wali koi baat nahi. Ye app tumhe apna cycle samajhne me help karegi.'},
+ {t:'Myths vs facts', c:'MYTH: Period me exercise nahi karna chahiye. FACT: Halka exercise cramps kam karta hai. MYTH: Period me baal nahi dhone chahiye. FACT: Koi medical reason nahi. MYTH: Irregular period ka matlab serious bimari. FACT: Aksar stress/lifestyle se hota hai, but check karwana smart hai. MYTH: Ye app pregnancy prevention ke liye use ho sakta hai. FACT: BILKUL NAHI \u2014 fertile window sirf information ke liye hai, contraception nahi.'}
+];
+function renderLibrary(){
+  const el = $('#lib-list'); el.innerHTML='';
+  LIBRARY.forEach((a,i)=>{
+    el.innerHTML += '<div class="tipitem" style="display:block"><h4 style="cursor:pointer" onclick="toggleLib('+i+')">'+a.t+' <span id="lib-arrow-'+i+'" style="float:right;color:var(--primary)">+</span></h4><p id="lib-'+i+'" style="display:none;margin-top:8px">'+a.c+'</p></div>';
+  });
+}
+function toggleLib(i){
+  const p = document.getElementById('lib-'+i), a = document.getElementById('lib-arrow-'+i);
+  const open = p.style.display==='block';
+  p.style.display = open?'none':'block'; a.textContent = open?'+':'\u2212';
+}
 function calNav(n){ calCursor.setMonth(calCursor.getMonth()+n); renderCalendar(); }
 
 /* ---------------- LOG ---------------- */
@@ -390,6 +494,7 @@ function renderSettings(){
   $('#set-key').value = S.geminiKey||'';
   $('#set-remind').value = S.reminderDays;
   $('#sw-theme').classList.toggle('on', S.theme==='dark');
+  $('#sw-teen').classList.toggle('on', !!S.teenMode);
   $('#sw-disguise').classList.toggle('on', !!S.disguise);
   $('#pin-status').textContent = S.pin ? 'PIN set hai' : 'PIN nahi hai';
 }
@@ -401,6 +506,7 @@ function bindSettings(){
   $('#set-key').onchange = e=>{ S.geminiKey=e.target.value.trim(); save(); toast(S.geminiKey?'API key save ho gayi (sirf is phone pe)':'API key hata di'); };
   $('#set-remind').onchange = e=>{ S.reminderDays=parseInt(e.target.value)||2; save(); };
   $('#sw-theme').onclick = ()=>{ S.theme = S.theme==='dark'?'light':'dark'; applyTheme(); save(); renderSettings(); };
+  $('#sw-teen').onclick = ()=>{ S.teenMode=!S.teenMode; save(); renderSettings(); toast(S.teenMode?'Teen mode on \u2014 simple language + teen tips':'Teen mode off'); };
   $('#sw-disguise').onclick = ()=>{ S.disguise=!S.disguise; applyDisguise(); save(); renderSettings(); toast(S.disguise?'Disguise on \u2014 lock screen calculator dikhegi':'Disguise off'); };
   $('#btn-setpin').onclick = ()=>{
     const v = $('#set-pin').value.trim();
@@ -490,7 +596,12 @@ function seedDemo(){
   const mk=(off,flow)=>({flow,symptoms:[],mood:'',note:''});
   for(const back of [44,16]){
     const start = addDays(t,-back);
-    for(let i=0;i<5;i++) S.logs[toStr(addDays(start,i))] = mk(0, i<1?'heavy':(i<3?'medium':'light'));
+    for(let i=0;i<5;i++){
+      const l = mk(0, i<1?'heavy':(i<3?'medium':'light'));
+      l.symptoms = i===0?['Cramps','Fatigue','Backache'] : (i===1?['Cramps','Bloating']:[]);
+      S.logs[toStr(addDays(start,i))] = l;
+    }
+    S.logs[toStr(addDays(start,-2))] = {flow:'',symptoms:['Mood swings','Headache'],mood:'Irritated',note:''};
   }
   S.logs[toStr(addDays(t,-1))] = {flow:'',symptoms:['Cramps','Fatigue'],mood:'Calm',note:'Halka headache tha'};
   S.logs[toStr(t)] = {flow:'',symptoms:['Bloating'],mood:'Happy',note:''};

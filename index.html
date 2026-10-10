@@ -83,6 +83,7 @@
     </div>
     <div class="greet"><h1 id="greet-title">Namaste!</h1><p id="greet-date"></p></div>
     <div class="notice" id="notice-bar" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg><span id="notice-text"></span></div>
+    <div class="notice" id="irreg-card" style="display:none;background:var(--purple-soft);color:var(--purple)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg><span id="irreg-text"></span></div>
     <div class="ring-card">
       <div class="ring-wrap">
         <svg width="132" height="132" viewBox="0 0 132 132">
@@ -149,7 +150,9 @@
         <span><i style="background:#F5C86B"></i> PMS</span>
       </div>
     </div>
+    <div class="hist-card" id="insights-card"></div>
     <div class="hist-card" id="cal-history"></div>
+    <div class="savebar"><button class="btn-primary" onclick="location.hash='#/report'">Doctor report banao (PDF)</button></div>
   </div>
 
   <!-- LOG -->
@@ -183,6 +186,7 @@
     </div>
     <div class="tipcat" id="tip-cats"></div>
     <div class="tiplist" id="tip-list"></div>
+    <div class="savebar"><button class="btn-primary" onclick="location.hash='#/library'">Health library kholo</button></div>
     <p class="ai-note">AI tips Gemini se aate hain aur sirf general wellness ke liye hain &mdash; koi bhi health problem ho toh doctor se zaroor milein.</p>
   </div>
 
@@ -205,6 +209,10 @@
       <div class="set-row"><div>Disguise mode<div class="s">lock screen calculator jaisi dikhegi, naam bhi &quot;Calculator&quot;</div></div><button class="switch" id="sw-disguise"></button></div>
     </div>
     <div class="set-card">
+      <h4>For teens</h4>
+      <div class="set-row"><div>Teen mode<div class="s">simple language + first-period tips</div></div><button class="switch" id="sw-teen"></button></div>
+    </div>
+    <div class="set-card">
       <h4>Look</h4>
       <div class="set-row"><div>Dark mode<div class="s">raat ke liye soft dark pink</div></div><button class="switch" id="sw-theme"></button></div>
     </div>
@@ -219,6 +227,30 @@
       <div class="set-row"><div class="danger">Saara data delete karo</div><button class="opt danger" id="btn-erase" style="border-color:#F3C2C2">Delete</button></div>
     </div>
     <p class="ai-note">Gulabi v1.0 &mdash; predictions estimate hain, 100% guarantee nahi. Jitna regular log karogi, utna accurate hoga. Data kabhi cloud pe nahi jaata.</p>
+  </div>
+
+  <div class="screen" id="scr-report">
+    <h1 class="page">Doctor Report</h1>
+    <p class="pagesub">Apne gynecologist ko dikhane ke liye ready summary</p>
+    <div class="cal-card" id="report-card">
+      <div style="display:flex;align-items:center;gap:8px;padding:0 4px 10px">
+        <svg width="24" height="24" viewBox="0 0 30 30"><g fill="#F86FA0"><ellipse cx="15" cy="7.5" rx="4" ry="5.5"/><ellipse cx="15" cy="22.5" rx="4" ry="5.5"/><ellipse cx="7.5" cy="15" rx="5.5" ry="4"/><ellipse cx="22.5" cy="15" rx="5.5" ry="4"/></g><circle cx="15" cy="15" r="4.5" fill="#FFD3E2"/></svg>
+        <div><b style="font-size:15px">Gulabi - Cycle Health Report</b><div class="s" id="rep-date" style="font-size:11px;color:var(--muted)"></div></div>
+      </div>
+      <div id="rep-summary"></div>
+      <p id="rep-reg" style="font-size:13px;font-weight:600;padding:12px 4px 0"></p>
+      <div id="rep-flags" style="font-size:12.5px;padding:8px 4px 0;color:var(--purple)"></div>
+      <table class="rep-table"><thead><tr><th>Period start</th><th>Cycle length</th><th>Top symptoms</th></tr></thead><tbody id="rep-rows"></tbody></table>
+      <p class="ai-note" style="text-align:left;margin-top:12px">Ye report tracking app ka summary hai, diagnosis nahi. Predictions estimates hain.</p>
+    </div>
+    <div class="savebar"><button class="btn-primary" onclick="printReport()">Print / PDF save karo</button></div>
+  </div>
+
+  <div class="screen" id="scr-library">
+    <h1 class="page">Health Library</h1>
+    <p class="pagesub">Sahi information, simple Hinglish me &mdash; kisi topic pe tap karke kholo</p>
+    <div class="tiplist" id="lib-list"></div>
+    <p class="ai-note">Ye general health information hai &mdash; personal advice ke liye doctor se milein.</p>
   </div>
 
   <div class="navbar" id="navbar">
