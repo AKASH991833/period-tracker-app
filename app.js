@@ -7,7 +7,7 @@ const $$ = s => document.querySelectorAll(s);
 
 const DEFAULT_STATE = {
   onboarded: false, name: '', avgCycle: 28, periodLen: 5, lastPeriod: '',
-  logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '',
+  logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '', voiceName: '',
   reminderDays: 2, reminders: false, reminderTime: '09:00', teenMode: false, aiConsent: false, createdAt: null
 };
 let S = load();
@@ -482,7 +482,10 @@ function stripForSpeech(t){
 function pickHiVoice(){
   if(!('speechSynthesis' in window)) return null;
   const vs = window.speechSynthesis.getVoices()||[];
-  return vs.find(v=>/^hi[-_]IN$/i.test(v.lang)) || vs.find(v=>/^hi/i.test(v.lang)) || null;
+  const hi = vs.filter(v=>/^hi/i.test(v.lang));
+  if(!hi.length) return null;
+  if(S.voiceName){ const f=hi.find(v=>v.name===S.voiceName); if(f) return f; }
+  return hi.find(v=>/google/i.test(v.name)&&/^hi[-_]IN$/i.test(v.lang)) || hi.find(v=>/google/i.test(v.name)) || hi.find(v=>/^hi[-_]IN$/i.test(v.lang)) || hi[0];
 }
 function setSpeakingUI(btn){
   if(speakingBtn && speakingBtn!==btn) clearSpeakUI(speakingBtn);
@@ -516,7 +519,7 @@ function speakToggle(text, btn){
     const u=new SpeechSynthesisUtterance(t);
     const v=pickHiVoice();
     if(v){ u.voice=v; u.lang=v.lang; } else { u.lang='hi-IN'; }
-    u.rate=0.92; u.pitch=1.0;
+    u.rate=0.95; u.pitch=1.05;
     u.onend=function(){ clearSpeakUI(btn); };
     u.onerror=function(){ clearSpeakUI(btn); };
     setSpeakingUI(btn);
@@ -724,6 +727,27 @@ function renderSettings(){
   const rt=$('#set-remtime'); if(rt) rt.value=S.reminderTime||'09:00';
   const rn=$('#remind-note'); if(rn) rn.textContent = window.AndroidReminders ? 'Subah '+(S.reminderTime||'09:00')+' pe: 2 din pehle, 1 din pehle, aur period wale din - sab anumaan ke saath' : 'Web pe reminders sirf app open hone pe banner dikhte hain. Pakke background alerts ke liye Android app install karo.';
   $('#pin-status').textContent = S.pin ? 'PIN set hai' : 'PIN nahi hai';
+  renderVoiceChooser();
+}
+function renderVoiceChooser(){
+  const box=$('#voice-chooser'); if(!box) return;
+  box.innerHTML='';
+  const mk=(label,active,fn)=>{ const b=document.createElement('button'); b.className='opt'+(active?' sel':''); b.style.margin='2px 4px 2px 0'; b.textContent=label; b.onclick=fn; box.appendChild(b); return b; };
+  if(window.AndroidTTS&&window.AndroidTTS.voices){
+    try{
+      const vs=JSON.parse(window.AndroidTTS.voices());
+      vs.forEach((v,i)=>{ mk('Awaaz '+(i+1)+(v.natural?' (best)':''), !!v.active, ()=>{ try{window.AndroidTTS.setVoice(v.name);}catch(e){} try{window.AndroidTTS.speak('Yeh meri nayi awaaz hai. Kaisi lagi?');}catch(e){} setTimeout(renderVoiceChooser,400); }); });
+      if(!vs.length) box.textContent='Is phone pe Hindi voice nahi mili - Google TTS me Hindi voice data download karo';
+    }catch(e){ box.textContent='Voice list nahi mil payi'; }
+    return;
+  }
+  if('speechSynthesis' in window){
+    const vs=(window.speechSynthesis.getVoices()||[]).filter(v=>/^hi/i.test(v.lang));
+    if(!vs.length){ box.textContent='Browser me Hindi voice nahi mili - Android app me aur natural awaaz milegi'; return; }
+    vs.forEach((v,i)=>{ const b=mk('Awaaz '+(i+1), S.voiceName===v.name, ()=>{ S.voiceName=v.name; save(); renderVoiceChooser(); speakToggle('Yeh meri nayi awaaz hai. Kaisi lagi?', b); }); });
+    return;
+  }
+  box.textContent='Is device pe voice available nahi';
 }
 function bindSettings(){
   $('#set-name').onchange = e=>{ S.name=e.target.value.trim(); save(); };
