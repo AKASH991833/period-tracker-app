@@ -56,8 +56,16 @@
         <p class="sub">Sirf 3 cheezein chahiye &mdash; 30 second ka kaam hai</p>
         <label>Aapka naam (optional)</label>
         <input id="ob-name" type="text" placeholder="Jaise: Priya" maxlength="20">
-        <label>Pichla period kab shuru hua tha?</label>
+        <label>Aapka sabse RECENT period kab shuru hua?</label>
         <input id="ob-lastp" type="date">
+        <p style="font-size:11.5px;color:var(--muted);margin:4px 0 0;line-height:1.5">Is mahine ya pichhle mahine &mdash; jo sabse LATEST period hai, uski <b>pehli tareekh</b> daalo.<br>Jaise: agar is mahine 6 tarikh ko aaya hai, toh 6 select karo &mdash; pichhle mahine wala nahi.</p>
+        <details style="margin-top:10px">
+          <summary style="font-size:12.5px;color:var(--primary);font-weight:600;cursor:pointer">Pichhle periods bhi daalo (optional &mdash; prediction aur accurate hogi)</summary>
+          <label style="margin-top:8px">Usse pichhla period kab shuru hua? (optional)</label>
+          <input id="ob-prev1" type="date">
+          <label>Aur usse pichhla? (optional)</label>
+          <input id="ob-prev2" type="date">
+        </details>
         <label>Cycle kitne din ka hota hai? (average — typically 21-35 din, par har body alag hai)</label>
         <input id="ob-cycle" type="number" value="28" min="20" max="45">
         <label>Period kitne din rehta hai?</label>

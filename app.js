@@ -74,7 +74,8 @@ function cycleStats(){
 function predict(){
   const st = cycleStats();
   const today = stripTime(new Date());
-  let lastStart = st.starts.length ? st.starts[st.starts.length-1] : fromStr(S.lastPeriod);
+  let lastStart = st.starts.length ? st.starts[st.starts.length-1] : (S.lastPeriod ? fromStr(S.lastPeriod) : null);
+  if(!lastStart || isNaN(lastStart)) lastStart = addDays(today, -st.avgR); // no data yet: neutral anchor, honest wide range
   const nextStart = addDays(lastStart, st.avgR); // late period: estimate stays until user logs - no silent shift
   const cycleDay = diffDays(lastStart, today)+1;
   const daysLeft = diffDays(today, nextStart);
@@ -137,6 +138,7 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function renderHome(){
   const p = predict();
   const today = new Date();
+  const noData = !S.lastPeriod && !Object.keys(S.logs).length;
   $('#greet-title').textContent = S.name ? 'Namaste, '+S.name+'!' : (S.teenMode ? 'Hi! Kaise ho?' : 'Namaste!');
   $('#greet-date').textContent = prettyDate(today)+' \u00b7 aapka din kaisa hai?';
   $('#ring-day').textContent = 'Day '+p.cycleDay;
@@ -145,7 +147,10 @@ function renderHome(){
   const frac = Math.min(1, p.cycleDay/p.avgR);
   $('#ring-arc').setAttribute('stroke-dashoffset', String(circ*(1-frac)));
   const fmt = d => d.getDate()+' '+HI_MONTHS[d.getMonth()];
-  if(p.daysLeft > 0){
+  if(noData){
+    $('#home-next').textContent = 'Apna pehla period log karo';
+    $('#home-next-sub').textContent = 'Jab period aaye, neeche "Period" button dabao ya Calendar me date tap karo \u2014 tab se predictions shuru hongi.';
+  } else if(p.daysLeft > 0){
     $('#home-next').textContent = 'Agla period ~'+p.daysLeft+' din me';
     $('#home-next-sub').textContent = 'Expected start: '+fmt(p.nextStart)+' (\u00b1'+p.unc+' din ka range: '+fmt(p.nextStartRange[0])+' \u2013 '+fmt(p.nextStartRange[1])+'). Calendar pe bhi yahi date hai. Jitna zyada log karogi, utna accurate hoga.';
   } else if(p.daysLeft===0){
@@ -551,13 +556,17 @@ function renderOnboarding(){
 }
 function finishOnboarding(){
   const lp = $('#ob-lastp').value;
-  if(!lp){ toast('Last period date daalo'); return; }
+  const prevDates = [$('#ob-prev1') && $('#ob-prev1').value, $('#ob-prev2') && $('#ob-prev2').value].filter(Boolean);
+  for(const pd of prevDates){ if(lp && pd >= lp){ toast('Pichhle periods recent date se PEHLE hone chahiye'); return; } }
+  if(!lp && !prevDates.length){ toast('Date nahi pata? Koi baat nahi \u2014 baad me Calendar se log kar sakte ho'); }
   S.lastPeriod = lp;
   S.avgCycle = Math.min(45,Math.max(20,parseInt($('#ob-cycle').value)||28));
   S.periodLen = Math.min(10,Math.max(2,parseInt($('#ob-plen').value)||5));
   S.name = $('#ob-name').value.trim();
   S.onboarded = true; S.createdAt = new Date().toISOString();
-  S.logs[S.lastPeriod] = {flow:'medium',symptoms:[],mood:'',note:''};
+  if(S.lastPeriod) S.logs[S.lastPeriod] = {flow:'medium',symptoms:[],mood:'',note:''};
+  for(const pd of prevDates){ if(pd && pd!==S.lastPeriod) S.logs[pd] = {flow:'medium',symptoms:[],mood:'',note:''}; }
+  if(!S.lastPeriod && prevDates.length){ S.lastPeriod = prevDates.sort().pop(); }
   save(); toast('Setup ho gaya \u2014 welcome!'); location.hash='#/home'; go('home');
 }
 
