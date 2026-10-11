@@ -1,14 +1,18 @@
-# Gulabi - Period & Health Tracker App
+# P Tracker - Period & Health Tracker App
+
+> **Rename note:** Ye app pehle "Gulabi" naam se thi; v1.4 se iska naam **P Tracker** hai. Same app, same data, same privacy - sirf naam badla hai. Android APK bhi available hai (native WebView shell, same offline data).
 
 Ek **simple, private aur accurate** period & health tracker - girls ke liye, unki privacy ko dhyan me rakh ke banaya gaya.
 
 **Live app:** hosted via GitHub Pages (link repo description me)
 
+**Android APK:** signed APK releases - install karne ke baad app bilkul offline chalti hai (AI tips ke liye internet optional). Data website se alag hota hai; website ka JSON backup app me import kar sakte ho.
+
 ## Features
 
 - **Cycle prediction** - agla period, ovulation aur fertile window, uncertainty range ke saath (fake precision nahi - honest "+/-N din ka range")
 - **Color-coded calendar** - period, predicted period, fertile window, ovulation, PMS - sab alag colors me
-- **Daily log** - flow (light/medium/heavy), 12 symptoms, 8 moods, notes
+- **Daily log** - flow (spotting/light/medium/heavy - spotting period count nahi hota), 12 symptoms, 8 moods, notes
 - **AI health tips** - Gemini API se personalized tips (cramps, diet, exercise, sleep, mood) - aapke current cycle phase ke hisaab se. Offline fallback tips bhi included.
 - **Privacy first** - tracking data 100% phone ke localStorage me. Koi account nahi, koi tracking nahi. AI tips optional hain: pehli use se pehle app clear permission leti hai, aur tab sirf limited cycle info (cycle day, phase, recent symptoms - kabhi period dates/notes/naam nahi) Google Gemini ko tip banane ke liye jati hai.
 - **PIN lock** + **Disguise mode** - lock screen ek working calculator jaisi dikhti hai, app ka naam "Calculator" ho jata hai. PIN type karke = dabao toh app khulti hai.

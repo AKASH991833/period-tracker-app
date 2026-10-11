@@ -1,4 +1,4 @@
-/* Gulabi - Period & Health Tracker
+/* P Tracker (formerly Gulabi) - Period & Health Tracker
    Privacy-first: sab data sirf is device ke localStorage me rehta hai. */
 
 const LS_KEY = 'gulabi_data_v1';
@@ -522,7 +522,7 @@ function bindSettings(){
   $('#btn-export').onclick = ()=>{
     const ex = Object.assign({}, S); delete ex.pin; delete ex.geminiKey;
     const blob = new Blob([JSON.stringify(ex,null,2)],{type:'application/json'});
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='gulabi-backup.json'; a.click();
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ptracker-backup.json'; a.click();
     toast('Backup download ho raha hai');
   };
   $('#import-file').onchange = e=>{
@@ -537,7 +537,7 @@ function bindSettings(){
 }
 function applyTheme(){ document.documentElement.setAttribute('data-theme', S.theme==='dark'?'dark':'light'); const mt=$('#theme-meta'); if(mt) mt.content = S.theme==='dark'?'#2A1520':'#FFF6F9'; }
 function applyDisguise(){
-  const t = S.disguise ? 'Calculator' : 'Gulabi';
+  const t = S.disguise ? 'Calculator' : 'P Tracker';
   document.title = t;
   const fav = $('#favicon');
   fav.href = S.disguise ? 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#333"/><rect x="10" y="8" width="44" height="14" rx="3" fill="#9FE6B8"/><rect x="10" y="28" width="9" height="9" rx="2" fill="#666"/><rect x="23" y="28" width="9" height="9" rx="2" fill="#666"/><rect x="36" y="28" width="9" height="9" rx="2" fill="#666"/><rect x="10" y="41" width="9" height="9" rx="2" fill="#666"/><rect x="23" y="41" width="9" height="9" rx="2" fill="#666"/><rect x="36" y="41" width="18" height="9" rx="2" fill="#FF9F2E"/></svg>')

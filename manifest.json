@@ -1,6 +1,6 @@
 {
-  "name": "Gulabi - Period & Health Tracker",
-  "short_name": "Gulabi",
+  "name": "P Tracker - Period & Health Tracker",
+  "short_name": "P Tracker",
   "description": "Private period & health tracker. Data sirf aapke phone pe.",
   "start_url": "./index.html",
   "display": "standalone",
