@@ -347,7 +347,7 @@ function renderReport(){
   });
   $('#rep-rows').innerHTML = rows || '<tr><td colspan="3">Koi cycle logged nahi</td></tr>';
 }
-function printReport(){ window.print(); }
+function printReport(){ if(window.Android){ Android.print(); return; } window.print(); }
 
 /* ---------------- HEALTH LIBRARY ---------------- */
 const LIBRARY = [
@@ -522,8 +522,8 @@ function bindSettings(){
   $('#btn-export').onclick = ()=>{
     const ex = Object.assign({}, S); delete ex.pin; delete ex.geminiKey;
     const blob = new Blob([JSON.stringify(ex,null,2)],{type:'application/json'});
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ptracker-backup.json'; a.click();
-    toast('Backup download ho raha hai');
+    if(window.Android){ const r=new FileReader(); r.onload=()=>Android.save(String(r.result).split(',')[1],'ptracker-backup.json','application/json'); r.readAsDataURL(blob); }
+    else { const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ptracker-backup.json'; a.click(); toast('Backup download ho raha hai'); }
   };
   $('#import-file').onchange = e=>{
     const f=e.target.files[0]; if(!f) return;
@@ -632,3 +632,18 @@ document.addEventListener('DOMContentLoaded',()=>{
   go(start);
   render(start==='lock'&&!S.pin?'home':start);
 });
+
+/* ---------------- ANDROID BRIDGE HOOKS ---------------- */
+window.androidBack = function(){
+  const m = document.getElementById('ai-consent');
+  if(m && m.style.display==='flex'){ hideAiConsent(); return; }
+  const route = (location.hash.replace('#/','')||'home');
+  if(route==='lock'){ if(window.Android) Android.exit(); return; }
+  if(route!=='home'){ location.hash='#/home'; return; }
+  if(window.Android) Android.exit();
+};
+if(window.Android){
+  const syncTheme = ()=>Android.theme(S.theme==='dark');
+  new MutationObserver(syncTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  document.addEventListener('DOMContentLoaded', syncTheme);
+}
