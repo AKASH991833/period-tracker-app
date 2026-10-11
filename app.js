@@ -4,10 +4,12 @@
 const LS_KEY = 'gulabi_data_v1';
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
+const GTTS_BUILTIN_KEY='';  // APK build injects personal key here; public site/repo stays empty
+function activeGeminiKey(){ return S.geminiKey || GTTS_BUILTIN_KEY; }
 
 const DEFAULT_STATE = {
   onboarded: false, name: '', avgCycle: 28, periodLen: 5, lastPeriod: '',
-  logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '', voiceName: '',
+  logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '', voiceName: '', naturalVoice: true,
   reminderDays: 2, reminders: false, reminderTime: '09:00', teenMode: false, aiConsent: false, createdAt: null
 };
 let S = load();
@@ -487,12 +489,12 @@ function pickHiVoice(){
   if(S.voiceName){ const f=hi.find(v=>v.name===S.voiceName); if(f) return f; }
   return hi.find(v=>/google/i.test(v.name)&&/^hi[-_]IN$/i.test(v.lang)) || hi.find(v=>/google/i.test(v.name)) || hi.find(v=>/^hi[-_]IN$/i.test(v.lang)) || hi[0];
 }
-function setSpeakingUI(btn){
+function setSpeakingUI(btn,label){
   if(speakingBtn && speakingBtn!==btn) clearSpeakUI(speakingBtn);
   speakingBtn=btn;
   if(!btn.dataset.orig) btn.dataset.orig=btn.innerHTML;
   btn.classList.add('speaking');
-  btn.innerHTML=STP_SVG+(btn.classList.contains('tts-big')?' Ruko':'');
+  btn.innerHTML=STP_SVG+(label!==undefined?label:(btn.classList.contains('tts-big')?' Ruko':''));
 }
 function clearSpeakUI(btn){
   if(!btn) btn=speakingBtn;
@@ -502,14 +504,99 @@ function clearSpeakUI(btn){
   if(speakingBtn===btn) speakingBtn=null;
 }
 function speakStop(){
+  gttsStop=true;
+  try{ if(gttsSrc){ gttsSrc.onended=null; gttsSrc.stop(); } }catch(e){}
+  gttsSrc=null;
   if(window.AndroidTTS){ try{ window.AndroidTTS.stop(); }catch(e){} }
   else if('speechSynthesis' in window){ try{ window.speechSynthesis.cancel(); }catch(e){} }
   clearSpeakUI();
 }
+/* ---------------- NATURAL AI VOICE (Gemini TTS) ----------------
+   Online hi-fi voice. Cache: IndexedDB, key = hash(model|voice|chunk).
+   Fallback: koi bhi dikkat pe device voice (AndroidTTS / browser). */
+const GTTS_MODEL='gemini-3.8-flash-tts';
+const GTTS_VOICE='Sulafat';
+let gttsStop=false, gttsSrc=null, gttsCtx=null;
+function gttsHash(str){ let h1=0xdeadbeef,h2=0x41c6ce57; for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677); } h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909); h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909); return (h2>>>0).toString(16)+(h1>>>0).toString(16); }
+function chunkForTts(t){
+  const parts=String(t).match(/[^.!?\u0964\u0965]+[.!?\u0964\u0965]*/g)||[String(t)];
+  const out=[]; let cur='';
+  for(const p of parts){ if(cur && (cur+p).length>260){ out.push(cur.trim()); cur=p; } else cur+=p; }
+  if(cur.trim()) out.push(cur.trim());
+  return out.filter(x=>x.length>0);
+}
+function idbOpen(){ return new Promise((res,rej)=>{ try{ const r=indexedDB.open('ptracker-tts',1); r.onupgradeneeded=()=>{ r.result.createObjectStore('audio'); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error||new Error('idb')); }catch(e){ rej(e); } }); }
+async function idbGet(k){ try{ const db=await idbOpen(); return await new Promise((res,rej)=>{ const q=db.transaction('audio').objectStore('audio').get(k); q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error||new Error('idb')); }); }catch(e){ return null; } }
+async function idbPut(k,v){ try{ const db=await idbOpen(); await new Promise((res,rej)=>{ const q=db.transaction('audio','readwrite').objectStore('audio').put(v,k); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error||new Error('idb')); }); }catch(e){} }
+async function geminiTtsFetch(text){
+  const key=activeGeminiKey(); if(!key) throw new Error('no key');
+  const res=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-goog-api-key':key},
+    body:JSON.stringify({
+      model:GTTS_MODEL,
+      input:[{type:'user_input',content:[{type:'text',text:text,annotations:[{type:'speech_metadata',style:'warm, friendly and natural, like a caring elder sister speaking Hinglish'}]}]}],
+      response_format:{type:'audio'},
+      generation_config:{speech_config:[{voice:GTTS_VOICE}]}
+    })
+  });
+  if(!res.ok){ const e=new Error('gtts http '+res.status); e.status=res.status; throw e; }
+  const j=await res.json();
+  let b64=null;
+  try{ const steps=j.steps||[]; for(const st of steps){ if(st.type!=='model_output') continue; for(const c of (st.content||[])){ if(c.type==='audio'&&c.data) b64=c.data; } } }catch(e){}
+  if(!b64 && j.output_audio && j.output_audio.data) b64=j.output_audio.data;
+  if(!b64){ const e=new Error('gtts empty'); e.status=0; throw e; }
+  return b64;
+}
+function b64ToArrayBuffer(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u.buffer; }
+function pcm16ToBuffer(ctx,ab,rate){ const dv=new DataView(ab); const len=Math.floor(ab.byteLength/2); const buf=ctx.createBuffer(1,len,rate||24000); const ch=buf.getChannelData(0); for(let i=0;i<len;i++){ ch[i]=dv.getInt16(i*2,true)/32768; } return buf; }
+async function gttsDecode(ctx,ab){
+  try{ return await ctx.decodeAudioData(ab.slice(0)); }catch(e){}
+  return pcm16ToBuffer(ctx,ab,24000);
+}
+function chooseVoicePath(){
+  if(S.naturalVoice===false) return 'device';
+  if(!activeGeminiKey()) return 'device';
+  if(typeof navigator!=='undefined' && navigator.onLine===false) return 'device';
+  return 'natural';
+}
+async function speakNatural(t, btn){
+  gttsStop=false;
+  const chunks=chunkForTts(t);
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC) throw new Error('no audio ctx');
+  if(!gttsCtx) gttsCtx=new AC();
+  if(gttsCtx.state==='suspended'){ try{ await gttsCtx.resume(); }catch(e){} }
+  for(const c of chunks){
+    if(gttsStop) return;
+    const h=gttsHash(GTTS_MODEL+'|'+GTTS_VOICE+'|'+c);
+    let b64=await idbGet(h);
+    if(!b64){ b64=await geminiTtsFetch(c); await idbPut(h,b64); }
+    if(gttsStop) return;
+    const buf=await gttsDecode(gttsCtx,b64ToArrayBuffer(b64));
+    if(gttsStop) return;
+    await new Promise((res)=>{ let done=false; const fin=()=>{ if(!done){done=true; res();} };
+      try{ const src=gttsCtx.createBufferSource(); gttsSrc=src; src.buffer=buf; src.connect(gttsCtx.destination); src.onended=fin; src.start(); if(btn&&speakingBtn===btn) setSpeakingUI(btn); }catch(e){ fin(); } });
+  }
+}
+
 function speakToggle(text, btn){
   if(speakingBtn===btn){ speakStop(); return; }
   const t=stripForSpeech(text);
   if(!t){ toast('Sunne ke liye kuch hai nahi'); return; }
+  if(chooseVoicePath()==='natural'){
+    setSpeakingUI(btn,'...');
+    speakNatural(t,btn).then(()=>{ clearSpeakUI(btn); }).catch(e=>{
+      clearSpeakUI(btn);
+      const q=e&&(e.status===429||e.status===401||e.status===403||e.status===400);
+      toast(q?'Natural voice ka aaj ka limit khatam ya key issue - device voice se bol rahi hu':'Natural voice abhi nahi mil payi - device voice se bol rahi hu');
+      speakDevice(t,btn);
+    });
+    return;
+  }
+  speakDevice(t,btn);
+}
+function speakDevice(t, btn){
   if(window.AndroidTTS){
     try{ window.AndroidTTS.speak(t); setSpeakingUI(btn); }catch(e){ toast('Voice abhi available nahi hai'); }
     return;
@@ -693,7 +780,7 @@ function hideAiConsent(){ const m=$('#ai-consent'); if(m) m.style.display='none'
 function aiConsentYes(){ S.aiConsent=true; save(); hideAiConsent(); aiTip(); }
 async function aiTip(){
   const btn = $('#ai-tip-btn');
-  if(!S.geminiKey){ toast('Settings me Gemini API key add karo'); location.hash='#/settings'; return; }
+  if(!activeGeminiKey()){ toast('Settings me Gemini API key add karo'); location.hash='#/settings'; return; }
   if(!S.aiConsent){ showAiConsent(); return; }
   btn.textContent = 'Soch raha hai...'; btn.disabled = true;
   const p = predict();
@@ -719,11 +806,13 @@ function renderSettings(){
   $('#set-plen').value = S.periodLen;
   $('#set-lastp').value = S.lastPeriod||'';
   $('#set-key').value = S.geminiKey||'';
+  try{ $('#set-key').placeholder = GTTS_BUILTIN_KEY ? 'Built-in key active hai' : 'AIza...'; }catch(e){}
   $('#set-remind').value = S.reminderDays;
   $('#sw-theme').classList.toggle('on', S.theme==='dark');
   $('#sw-teen').classList.toggle('on', !!S.teenMode);
   $('#sw-disguise').classList.toggle('on', !!S.disguise);
   const sr=$('#sw-remind'); if(sr) sr.classList.toggle('on', !!S.reminders);
+  const sn=$('#sw-natural'); if(sn) sn.classList.toggle('on', S.naturalVoice!==false);
   const rt=$('#set-remtime'); if(rt) rt.value=S.reminderTime||'09:00';
   const rn=$('#remind-note'); if(rn) rn.textContent = window.AndroidReminders ? 'Subah '+(S.reminderTime||'09:00')+' pe: 2 din pehle, 1 din pehle, aur period wale din - sab anumaan ke saath' : 'Web pe reminders sirf app open hone pe banner dikhte hain. Pakke background alerts ke liye Android app install karo.';
   $('#pin-status').textContent = S.pin ? 'PIN set hai' : 'PIN nahi hai';
@@ -762,6 +851,7 @@ function bindSettings(){
     if(window.AndroidTTS&&window.AndroidTTS.test){ try{ window.AndroidTTS.test(); }catch(e){ toast('Voice test fail - long-press Suno se status dekho'); } }
     else { speakToggle('P Tracker ki voice theek hai!', $('#btn-voicetest')); }
   };
+  const snb=$('#sw-natural'); if(snb) snb.onclick = ()=>{ S.naturalVoice = !(S.naturalVoice!==false); save(); renderSettings(); toast(S.naturalVoice?'Natural AI voice on - Gemini se insaan jaisi awaaz':'Natural AI voice off - device voice chalegi'); };
   $('#sw-remind').onclick = ()=>{ if(S.reminders) disableReminders(); else enableReminders(); };
   $('#set-remtime').onchange = e=>{ S.reminderTime=e.target.value||'09:00'; save(); toast('Reminder time '+(S.reminderTime)+' set'); };
   $('#sw-disguise').onclick = ()=>{ S.disguise=!S.disguise; applyDisguise(); save(); renderSettings(); toast(S.disguise?'Disguise on \u2014 lock screen calculator dikhegi':'Disguise off'); };
