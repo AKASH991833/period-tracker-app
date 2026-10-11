@@ -115,6 +115,7 @@ function go(route){
 }
 window.addEventListener('hashchange',()=>go(location.hash.replace('#/','')||'home'));
 function render(route){
+  speakStop();
   $$('.screen').forEach(e=>e.classList.remove('active'));
   const nav = $('#navbar');
   const withNav = ['home','calendar','log','tips','settings','report','library'];
@@ -354,22 +355,91 @@ function renderReport(){
 }
 function printReport(){ if(window.Android){ Android.print(); return; } window.print(); }
 
-/* ---------------- HEALTH LIBRARY ---------------- */
+/* ---------------- TTS (suno / listen) ----------------
+   Browser: speechSynthesis (hi-IN voice preferred, slightly slow).
+   APK (WebView): native AndroidTTS bridge -> Android TextToSpeech.
+   100% free, no paid APIs. Markdown/emoji stripped before speaking. */
+const SPK_SVG='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const STP_SVG='<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
+let speakingBtn=null;
+function stripForSpeech(t){
+  return String(t||'')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{2190}-\u{21FF}\u{2300}-\u{23FF}]/gu,' ')
+    .replace(/[*_`#>~|]/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+function pickHiVoice(){
+  if(!('speechSynthesis' in window)) return null;
+  const vs = window.speechSynthesis.getVoices()||[];
+  return vs.find(v=>/^hi[-_]IN$/i.test(v.lang)) || vs.find(v=>/^hi/i.test(v.lang)) || null;
+}
+function setSpeakingUI(btn){
+  if(speakingBtn && speakingBtn!==btn) clearSpeakUI(speakingBtn);
+  speakingBtn=btn;
+  if(!btn.dataset.orig) btn.dataset.orig=btn.innerHTML;
+  btn.classList.add('speaking');
+  btn.innerHTML=STP_SVG+(btn.classList.contains('tts-big')?' Ruko':'');
+}
+function clearSpeakUI(btn){
+  if(!btn) btn=speakingBtn;
+  if(!btn) return;
+  btn.classList.remove('speaking');
+  if(btn.dataset.orig) btn.innerHTML=btn.dataset.orig;
+  if(speakingBtn===btn) speakingBtn=null;
+}
+function speakStop(){
+  if(window.AndroidTTS){ try{ window.AndroidTTS.stop(); }catch(e){} }
+  else if('speechSynthesis' in window){ try{ window.speechSynthesis.cancel(); }catch(e){} }
+  clearSpeakUI();
+}
+function speakToggle(text, btn){
+  if(speakingBtn===btn){ speakStop(); return; }
+  const t=stripForSpeech(text);
+  if(!t){ toast('Sunne ke liye kuch hai nahi'); return; }
+  if(window.AndroidTTS){
+    try{ window.AndroidTTS.speak(t); setSpeakingUI(btn); }catch(e){ toast('Voice abhi available nahi hai'); }
+    return;
+  }
+  if('speechSynthesis' in window){
+    try{ window.speechSynthesis.cancel(); }catch(e){}
+    const u=new SpeechSynthesisUtterance(t);
+    const v=pickHiVoice();
+    if(v){ u.voice=v; u.lang=v.lang; } else { u.lang='hi-IN'; }
+    u.rate=0.92; u.pitch=1.0;
+    u.onend=function(){ clearSpeakUI(btn); };
+    u.onerror=function(){ clearSpeakUI(btn); };
+    setSpeakingUI(btn);
+    window.speechSynthesis.speak(u);
+    return;
+  }
+  toast('Is device/browser me voice feature nahi hai');
+}
+window.onAndroidTtsDone=function(){ clearSpeakUI(); };
+
+/* ---------------- JAANO (learn: periods ke baare mein) ----------------
+   Static curated content - reliable, no AI calls, no quota use.
+   Ye medical advice nahi hai - doctor ki salah zaroor lo. */
 const LIBRARY = [
- {t:'Period 101: kya hota hai?', c:'Har month uterus apni lining banata hai possible pregnancy ke liye. Jab pregnancy nahi hoti, lining bahar nikalti hai \u2014 yehi period hai. 21-35 din typical range hai, lekin thoda upar-neeche bhi normal ho sakta hai \u2014 har body alag hai. Pehle 1-2 saal (teen years) me irregular hona bilkul normal hai.'},
- {t:'Cramps kyon hote hain?', c:'Prostaglandins naam ke chemicals uterus ko contract karwate hain \u2014 isi se cramps. Heat (hot water bag), halka exercise, ajwain/adrak wala garam paani aur magnesium-rich khana (nuts, banana, dark chocolate) se kai logon ko relief milta hai. Bahut zyada dard ho jo kaam na karne de, toh doctor se milein \u2014 endometriosis jaise reasons ho sakte hain.'},
- {t:'PMS samjho', c:'Period se 5-7 din pehle mood swings, bloating, cravings, irritability \u2014 ye PMS hai, hormones ki wajah se. Regular sleep, kam namkeen/caffeine, complex carbs aur halka exercise se kai logon ko noticeable relief milta hai \u2014 har body alag hoti hai. PMDD (bahut severe PMS) ho toh doctor se baat karo.'},
- {t:'Hygiene basics', c:'Pad har 4-6 ghante me badlo, menstrual cup 8-12 ghante me. Hamesha front-to-back wipe. Scented products avoid karo \u2014 vagina self-cleaning hoti hai. Itching, unusual discharge ya badbu ho toh doctor se milein.'},
- {t:'Irregular cycles & PCOS signs', c:'Cycle 35+ din ka ho, mahine skip ho, ya bahut heavy bleeding ho \u2014 common causes: stress, thyroid, PCOS, weight change. PCOS ke signs: irregular periods + acne/facial hair + weight gain. 2-3 mahine irregular rahe toh gynecologist visit karo \u2014 early checkup se sab manageable hai.'},
- {t:'Kab doctor se milna chahiye (warning signs)', c:'Ye signs ho toh doctor visit delay mat karo: (1) 3+ mahine period na aaye (pregnancy nahi hai toh bhi), (2) bleeding 7+ din chale ya bahut heavy ho (1-2 ghante me pad bhare), (3) periods ke beech bleeding, (4) severe pain jo normal na lage, (5) fever ke saath period symptoms, (6) unusual discharge ya smell.'},
- {t:'Pehla period? (teen guide)', c:'Pehla period 10-15 saal me aata hai \u2014 ghabrane wali baat nahi, ye healthy hai! Shuru ke 1-2 saal irregular rahega. School bag me hamesha ek pad rakho. Kisi trusted adult (mummy, didi, teacher) se baat karo \u2014 sharmane wali koi baat nahi. Ye app tumhe apna cycle samajhne me help karegi.'},
- {t:'Myths vs facts', c:'MYTH: Period me exercise nahi karna chahiye. FACT: Halka exercise cramps kam karta hai. MYTH: Period me baal nahi dhone chahiye. FACT: Koi medical reason nahi. MYTH: Irregular period ka matlab serious bimari. FACT: Aksar stress/lifestyle se hota hai, but check karwana smart hai. MYTH: Ye app pregnancy prevention ke liye use ho sakta hai. FACT: BILKUL NAHI \u2014 fertile window sirf information ke liye hai, contraception nahi.'}
+ {cat:'Period kya hai aur kyon hota hai', t:'Period 101: kya hota hai?', c:'Har month uterus (bachedani) apni andar ki lining banata hai \u2014 possible pregnancy ke liye. Hormones (estrogen, progesterone) is poori process ko chalate hain. Jab pregnancy nahi hoti, body ko lining ki zaroorat nahi rehti \u2014 isliye wo blood ke saath bahar nikalti hai. Yehi period hai. Cycle 21-35 din typical hai, period 3-7 din rehta hai \u2014 thoda upar-neeche bhi normal hai, har body alag hai. Pehle 1-2 saal (teen years) me irregular hona bilkul normal hai.'},
+ {cat:'Period kya hai aur kyon hota hai', t:'PMS samjho', c:'Period se 5-7 din pehle mood swings, bloating, cravings, irritability \u2014 ye PMS hai, hormones ki wajah se. Regular sleep, kam namkeen/caffeine, complex carbs aur halka exercise se kai logon ko noticeable relief milta hai \u2014 har body alag hoti hai. PMDD (bahut severe PMS) ho toh doctor se baat karo.'},
+ {cat:'Period kya hai aur kyon hota hai', t:'Pehla period? (teen guide)', c:'Pehla period 10-15 saal me aata hai \u2014 ghabrane wali baat nahi, ye healthy hai! Shuru ke 1-2 saal irregular rahega. School bag me hamesha ek pad rakho. Kisi trusted adult (mummy, didi, teacher) se baat karo \u2014 sharmane wali koi baat nahi. Ye app tumhe apna cycle samajhne me help karegi.'},
+ {cat:'Pain kyon hota hai + relief', t:'Cramps kyon hote hain?', c:'Prostaglandins naam ke chemicals uterus ko contract karwate hain \u2014 isi se cramps. In cheezon se kai logon ko relief milta hai: heat (hot water bag / heating pad 15-20 min), halki walk ya stretching, ajwain/adrak wala garam paani, magnesium-rich khana (nuts, banana, dark chocolate), aur kaafi paani. Bahut zyada dard ho jo kaam na karne de, toh doctor se milein \u2014 endometriosis jaise reasons ho sakte hain.'},
+ {cat:'Us time kya karna chahiye', t:'Kya khana, kaise rest karein', c:'Iron wala khana (palak, chana, gud, dates) weakness kam rakhta hai \u2014 period me blood ke saath iron bhi nikalta hai. 8-10 glass paani piyo. Halka garam khana aur garam chai/doodh comfort deta hai. 7-8 ghante ki neend lo \u2014 body isi me repair hoti hai. Aur haan \u2014 rest karna laziness nahi hai, zaroorat hai. Guilt free rest lo.'},
+ {cat:'Us time kya karna chahiye', t:'Hygiene basics', c:'Pad har 4-6 ghante me badlo, menstrual cup 8-12 ghante me. Hamesha front-to-back wipe. Scented products avoid karo \u2014 vagina self-cleaning hoti hai. Cotton underwear best hai. Itching, unusual discharge ya badbu ho toh doctor se milein.'},
+ {cat:'Kya avoid karein + myths vs facts', t:'In cheezon se doori achhi hai', c:'Bahut zyada caffeine (1-2 cup se zyada chai/coffee) aur bahut zyada namkeen \u2014 bloating aur breast tenderness badha sakte hain. Scented pads/sprays ya douching \u2014 natural balance kharab hota hai. Bahut der tak same pad (4-6 ghante se zyada). Bahut tight synthetic kapde lambe time tak. Aur zyada stress \u2014 cycle ko directly affect karta hai. Ye strict rules nahi, comfort tips hain \u2014 kabhi kabhi ho jaye toh guilt mat karo.'},
+ {cat:'Kya avoid karein + myths vs facts', t:'Myths vs facts', c:'MYTH: Period me exercise nahi karna chahiye. FACT: Halka exercise cramps kam karta hai. MYTH: Period me baal nahi dhone chahiye. FACT: Koi medical reason nahi. MYTH: Irregular period ka matlab serious bimari. FACT: Aksar stress/lifestyle se hota hai, but check karwana smart hai. MYTH: Ye app pregnancy prevention ke liye use ho sakta hai. FACT: BILKUL NAHI \u2014 fertile window sirf information ke liye hai, contraception nahi.'},
+ {cat:'Doctor ko kab dikhana chahiye', t:'Warning signs (red flags)', c:'Ye signs ho toh doctor visit delay mat karo: (1) 3+ mahine period na aaye (pregnancy nahi hai toh bhi), (2) bleeding 7+ din chale ya bahut heavy ho (1-2 ghante me pad bhare), (3) periods ke beech bleeding, (4) severe pain jo normal na lage, (5) fever ke saath period symptoms, (6) unusual discharge ya smell. Early checkup se sab manageable hai \u2014 darne wali baat nahi, smart wali baat hai.'},
+ {cat:'Doctor ko kab dikhana chahiye', t:'Irregular cycles & PCOS signs', c:'Cycle 35+ din ka ho, mahine skip ho, ya bahut heavy bleeding ho \u2014 common causes: stress, thyroid, PCOS, weight change. PCOS ke signs: irregular periods + acne/facial hair + weight gain. 2-3 mahine irregular rahe toh gynecologist visit karo \u2014 early checkup se sab manageable hai.'}
 ];
 function renderLibrary(){
   const el = $('#lib-list'); el.innerHTML='';
+  let lastCat='';
   LIBRARY.forEach((a,i)=>{
-    el.innerHTML += '<div class="tipitem" style="display:block"><h4 style="cursor:pointer" onclick="toggleLib('+i+')">'+a.t+' <span id="lib-arrow-'+i+'" style="float:right;color:var(--primary)">+</span></h4><p id="lib-'+i+'" style="display:none;margin-top:8px">'+a.c+'</p></div>';
+    const head = a.cat!==lastCat ? '<div class="learncat">'+a.cat+'</div>' : '';
+    lastCat=a.cat;
+    el.innerHTML += head+'<div class="tipitem" style="display:block"><div class="libhead" onclick="toggleLib('+i+')"><h4>'+a.t+'</h4><div class="acts"><button class="tts-mini" data-li="'+i+'" aria-label="Suno">'+SPK_SVG+'</button><span id="lib-arrow-'+i+'" style="color:var(--primary);font-weight:800">+</span></div></div><p id="lib-'+i+'" style="display:none;margin-top:8px">'+a.c+'</p></div>';
   });
+  $$('#lib-list .tts-mini').forEach(b=>{ const a=LIBRARY[+b.dataset.li]; b.onclick=function(ev){ ev.stopPropagation(); speakToggle(a.t+'. '+a.c, b); }; });
 }
 function toggleLib(i){
   const p = document.getElementById('lib-'+i), a = document.getElementById('lib-arrow-'+i);
@@ -444,9 +514,10 @@ function renderTips(){
   $('#bigtip-text').textContent = localTip(p);
   const lib = buildTipLib().filter(t=> tipCat==='all' || t.cat===tipCat);
   const list = $('#tip-list'); list.innerHTML='';
-  lib.slice(0,8).forEach(t=>{
-    list.innerHTML += '<div class="tipitem"><div class="ic" style="background:'+t.bg+'">'+t.icon+'</div><div><h4>'+t.title+'</h4><p>'+t.body+'</p></div></div>';
+  lib.slice(0,8).forEach((t,i)=>{
+    list.innerHTML += '<div class="tipitem"><div class="ic" style="background:'+t.bg+'">'+t.icon+'</div><div style="flex:1"><h4>'+t.title+'</h4><p>'+t.body+'</p></div><button class="tts-mini" data-ti="'+i+'" aria-label="Suno">'+SPK_SVG+'</button></div>';
   });
+  $$('#tip-list .tts-mini').forEach(b=>{ const t=lib[+b.dataset.ti]; b.onclick=function(){ speakToggle(t.title+'. '+t.body, b); }; });
 }
 function buildTipLib(){
   const I = {

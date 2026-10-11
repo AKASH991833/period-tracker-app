@@ -181,3 +181,14 @@ body.calc-mode .calc button[style*="color:var(--primary)"]{color:#FF9F2E !import
   #scr-report{display:block !important}
   .cal-card{box-shadow:none;border:1px solid #eee}
 }
+
+/* listen (TTS) buttons */
+.tts-mini{width:32px;height:32px;border-radius:12px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:none;cursor:pointer}
+.tts-mini.speaking{background:var(--primary);color:#fff;animation:ttspulse 1s infinite}
+.tts-big{display:inline-flex;align-items:center;gap:6px}
+.tts-big.speaking{animation:ttspulse 1s infinite}
+@keyframes ttspulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+/* jaano (learn) section */
+.learncat{margin:18px 22px 2px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--primary)}
+.libhead{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+.libhead .acts{display:flex;align-items:center;gap:8px;flex-shrink:0}

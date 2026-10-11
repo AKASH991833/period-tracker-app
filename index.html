@@ -191,11 +191,12 @@
       <p id="bigtip-text" style="font-size:14.5px"></p>
       <div class="row">
         <button class="btn" id="ai-tip-btn" onclick="aiTip()">Naya AI tip</button>
+        <button class="btn alt tts-big" id="tip-tts-btn" onclick="speakToggle(document.getElementById('bigtip-text').textContent,this)" aria-label="Tip suno"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg> Suno</button>
       </div>
     </div>
     <div class="tipcat" id="tip-cats"></div>
     <div class="tiplist" id="tip-list"></div>
-    <div class="savebar"><button class="btn-primary" onclick="location.hash='#/library'">Health library kholo</button></div>
+    <div class="savebar"><button class="btn-primary" onclick="location.hash='#/library'">Jaano: periods ke baare mein</button></div>
     <p class="ai-note">AI tips Gemini se aate hain aur sirf general wellness ke liye hain &mdash; koi bhi health problem ho toh doctor se zaroor milein.</p>
   </div>
 
@@ -256,8 +257,8 @@
   </div>
 
   <div class="screen" id="scr-library">
-    <h1 class="page">Health Library</h1>
-    <p class="pagesub">Sahi information, simple Hinglish me &mdash; kisi topic pe tap karke kholo</p>
+    <h1 class="page">Jaano</h1>
+    <p class="pagesub">Periods ke baare mein &mdash; simple Hinglish me. Tap karke padho ya speaker button se suno</p>
     <div class="tiplist" id="lib-list"></div>
     <p class="ai-note">Ye general health information hai &mdash; personal advice ke liye doctor se milein.</p>
   </div>
