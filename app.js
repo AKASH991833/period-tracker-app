@@ -8,7 +8,7 @@ const $$ = s => document.querySelectorAll(s);
 const DEFAULT_STATE = {
   onboarded: false, name: '', avgCycle: 28, periodLen: 5, lastPeriod: '',
   logs: {}, pin: '', theme: 'light', disguise: false, geminiKey: '',
-  reminderDays: 2, teenMode: false, aiConsent: false, createdAt: null
+  reminderDays: 2, reminders: false, reminderTime: '09:00', teenMode: false, aiConsent: false, createdAt: null
 };
 let S = load();
 let unlocked = !S.pin;
@@ -18,7 +18,7 @@ let tipCat = 'all';
 let draft = {};
 
 function load(){ try{ const d = JSON.parse(localStorage.getItem(LS_KEY)); return d ? Object.assign({}, DEFAULT_STATE, d) : {...DEFAULT_STATE}; }catch(e){ return {...DEFAULT_STATE}; } }
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); syncReminders(); }
 function todayStr(){ return toStr(new Date()); }
 function toStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fromStr(s){ const[a,b,c]=s.split('-').map(Number); return new Date(a,b-1,c); }
@@ -58,19 +58,51 @@ function periodStarts(){
   starts.sort((a,b)=>a-b);
   return starts;
 }
+function wAvg(arr){ // linear weights: oldest=1 ... newest=n (n=4 -> 10/20/30/40%) - recent cycles count more
+  let sw=0, sum=0;
+  for(let i=0;i<arr.length;i++){ const w=i+1; sw+=w; sum+=arr[i]*w; }
+  return sum/sw;
+}
+function dropOutliers(arr){ // a 60-day travel/stress cycle should not wreck the average: keep within median +/-10 (when 2+ remain)
+  if(arr.length<3) return {kept:arr.slice(), dropped:0};
+  const srt=arr.slice().sort((a,b)=>a-b);
+  const med=srt[Math.floor(srt.length/2)];
+  const kept=arr.filter(x=>Math.abs(x-med)<=10);
+  return kept.length>=2 ? {kept, dropped:arr.length-kept.length} : {kept:arr.slice(), dropped:0};
+}
+function confLevel(sd, source, count){ // honest confidence from regularity
+  if(source!=='logged' || count<2) return {key:'low', label:'rough idea'};
+  if(sd<=2.5) return {key:'high', label:'kaafi pakka'};
+  if(sd<=5) return {key:'med', label:'lagbhag'};
+  return {key:'low', label:'rough idea'};
+}
 function cycleStats(){
   const starts = periodStarts();
   const lens = [];
   for(let i=1;i<starts.length;i++){ const l=diffDays(starts[i-1],starts[i]); if(l>=15&&l<=90) lens.push(l); }
   const recent = lens.slice(-6);
+  const dd = dropOutliers(recent);
+  const used = dd.kept;
   let avg, sd, source;
-  if(recent.length>=1){ avg = recent.reduce((a,b)=>a+b,0)/recent.length; source='logged'; }
+  if(used.length>=1){ avg = wAvg(used); source='logged'; }
   else { avg = S.avgCycle||28; source='default'; }
-  if(recent.length>=2){ const m=avg; sd=Math.sqrt(recent.reduce((a,b)=>a+(b-m)*(b-m),0)/(recent.length-1)); }
-  else sd = recent.length===1 ? 2.5 : 3.5;
+  if(used.length>=2){ const m=used.reduce((a,b)=>a+b,0)/used.length; sd=Math.sqrt(used.reduce((a,b)=>a+(b-m)*(b-m),0)/(used.length-1)); }
+  else sd = used.length===1 ? 2.5 : 3.5;
   const unc = Math.max(2, Math.round(sd));
-  return {starts, lens, avg:Math.round(avg*10)/10, avgR:Math.round(avg), sd:Math.round(sd*10)/10, unc, source, count:recent.length};
+  // period duration learning (runs of consecutive flow days; runs of 1 day are start-markers, runs >10 are artifacts)
+  const days = periodDaysList();
+  const durs=[]; let run=days.length?1:0;
+  for(let i=1;i<days.length;i++){
+    if(diffDays(fromStr(days[i-1]),fromStr(days[i]))<=1){ run++; }
+    else { if(run>=2&&run<=10) durs.push(run); run=1; }
+  }
+  if(run>=2&&run<=10) durs.push(run);
+  const dRecent = durs.slice(-6);
+  const plen = dRecent.length ? wAvg(dRecent) : (S.periodLen||5);
+  const confidence = confLevel(sd, source, used.length);
+  return {starts, lens, avg:Math.round(avg*10)/10, avgR:Math.round(avg), sd:Math.round(sd*10)/10, unc, source, count:used.length, dropped:dd.dropped, plen:Math.round(plen*10)/10, plenR:Math.round(plen), confidence};
 }
+
 function predict(){
   const st = cycleStats();
   const today = stripTime(new Date());
@@ -81,14 +113,14 @@ function predict(){
   const daysLeft = diffDays(today, nextStart);
   const ovu = addDays(nextStart,-14);
   const fertileA = addDays(ovu,-4), fertileB = addDays(ovu,1);
-  const periodEnd = addDays(nextStart, (S.periodLen||5)-1);
+  const periodEnd = addDays(nextStart, st.plenR-1);
   return {...st, lastStart, nextStart, nextStartRange:[addDays(nextStart,-st.unc), addDays(nextStart,st.unc)], cycleDay, daysLeft, ovu, fertileA, fertileB, periodEnd};
 }
 function futureCycles(n){ // centralized: next n predicted cycles; uncertainty widens honestly with distance
   const p = predict(); const out=[];
   let ns=p.nextStart, o=p.ovu, fa=p.fertileA, fb=p.fertileB;
   for(let k=0;k<n;k++){
-    out.push({start:ns, end:addDays(ns,(S.periodLen||5)-1), unc:p.unc+k, ovu:o, fertileA:fa, fertileB:fb});
+    out.push({start:ns, end:addDays(ns,p.plenR-1), unc:p.unc+k, ovu:o, fertileA:fa, fertileB:fb});
     ns=addDays(ns,p.avgR); o=addDays(o,p.avgR); fa=addDays(fa,p.avgR); fb=addDays(fb,p.avgR);
   }
   return out;
@@ -110,6 +142,72 @@ function dayStatus(ds){ // returns set of flags for a date string
   }
   if(!f.period && !f.pPeriod && d>=addDays(p.nextStart,-5) && d<p.nextStart) f.pms = true;
   return f;
+}
+
+/* ---------------- REMINDERS (local notifications) ----------------
+   APK: native AlarmManager via AndroidReminders bridge (survives app close; BOOT_COMPLETED re-arms).
+   Web: honest in-app banner only (browser cannot guarantee background alerts).
+   Texts always framed as anumaan (estimate) - predictions move. */
+function alertTime(d){ const t=(S.reminderTime||'09:00').split(':'); const x=new Date(d); x.setHours(+t[0]||9,+t[1]||0,0,0); return x; }
+function reminderText(off,p){
+  const conf=p.confidence.label;
+  if(off===-2) return 'Period ka anumaan: 2 din baaki ('+conf+'). Pads/essentials ready rakho.';
+  if(off===-1) return 'Period ka anumaan: kal expected hai ('+conf+'). Taiyaari kar lo.';
+  return 'Period ka anumaan: aaj aa sakta hai ('+conf+'). Aaya toh app me log karo.';
+}
+function computeAlerts(){
+  const p=predict(); const out=[];
+  [-2,-1,0].forEach(off=>{
+    const at=alertTime(addDays(p.nextStart,off));
+    if(at.getTime()>Date.now()) out.push({id:'p'+toStr(p.nextStart)+'_'+off, t:at.getTime(), title:'P Tracker \u00b7 period reminder', body:reminderText(off,p)});
+  });
+  return out;
+}
+function syncReminders(){
+  if(!window.AndroidReminders) return;
+  try{
+    if(S.reminders) window.AndroidReminders.schedule(JSON.stringify(computeAlerts()));
+    else window.AndroidReminders.cancel();
+  }catch(e){}
+}
+function enableReminders(){
+  if(window.AndroidReminders){
+    let granted=false;
+    try{ granted=window.AndroidReminders.granted(); }catch(e){}
+    if(!granted){
+      if(confirm('Period reminders ke liye notification permission chahiye. Subah '+(S.reminderTime||'09:00')+' baje: 2 din pehle, 1 din pehle aur period wale din - sab "anumaan" ke saath. Allow karein?')){
+        try{ window.AndroidReminders.requestPermission(); }catch(e){ toast('Permission request nahi khul payi'); }
+      }
+      return;
+    }
+    S.reminders=true; save(); toast('Reminders on - roz '+(S.reminderTime||'09:00')+' pe'); renderSettings();
+  } else {
+    S.reminders=true; save(); renderSettings();
+    toast('In-app reminders on - web pe app open hone pe banner dikhega');
+  }
+}
+function disableReminders(){ S.reminders=false; save(); toast('Reminders off'); renderSettings(); }
+window.onNotifPerm=function(g){
+  if(g){ S.reminders=true; save(); toast('Reminders on - roz '+(S.reminderTime||'09:00')+' pe'); }
+  else { S.reminders=false; save(); toast('Notification permission nahi mili - phone Settings > Apps > P Tracker > Notifications se allow kar sakte ho'); }
+  renderSettings();
+};
+function ttsDebug(ev){
+  if(ev&&ev.preventDefault) ev.preventDefault();
+  if(window.AndroidTTS&&window.AndroidTTS.status){
+    try{
+      const st=JSON.parse(window.AndroidTTS.status());
+      const sm={0:'load ho raha hai (1-2 sec ruko, phir dabao)',1:'READY',2:'FAILED - '+st.msg};
+      alert('Voice engine: '+(sm[st.state]||st.state)+'\n'+(st.engines?('Engines: '+st.engines):'')+(st.state!==1?'\nFix: Play Store se Speech Recognition & Synthesis (Google TTS) update/install karo, phir app band karke kholo.':''));
+    }catch(e){ alert('Voice status nahi mil paya'); }
+  } else if('speechSynthesis' in window){
+    const vs=window.speechSynthesis.getVoices()||[];
+    const hi=vs.filter(v=>/^hi/i.test(v.lang));
+    alert('Browser voice: '+vs.length+' voices available'+(hi.length?' ('+hi.length+' Hindi)':' - Hindi voice nahi, default voice use hogi'));
+  } else {
+    alert('Is browser/device me voice feature nahi hai - Android app try karo');
+  }
+  return false;
 }
 
 /* ---------------- ROUTER ---------------- */
@@ -166,14 +264,18 @@ function renderHome(){
     $('#home-next').textContent = 'Period ' + Math.abs(p.daysLeft) + ' din late lag raha hai';
     $('#home-next-sub').textContent = 'Late hona kabhi kabhi normal hai \u2014 stress, travel, diet sab affect karta hai. App khud dates shift nahi karta: jab period aaye, log karo, tab estimate update hogi. 2+ hafte late ho toh doctor se mil lena.';
   }
-  $('#range-pill').textContent = '\u00b1'+p.unc+' din ka range \u00b7 '+(p.source==='logged'? (p.count<2 ? 'sirf '+p.count+' cycle ka data \u2014 rough estimate' : p.count+' cycles ka data') : 'default estimate \u2014 rough');
+  $('#range-pill').textContent = '\u00b1'+p.unc+' din \u00b7 '+p.confidence.label+' \u00b7 '+(p.source==='logged' ? (p.count+' cycle'+(p.count>1?'s':'')+' se seekha') : 'default estimate');
   const ovuD = diffDays(today, p.ovu);
   $('#chip-ovu').textContent = (ovuD>0 ? '~'+ovuD+' din baad' : (ovuD===0?'aaj ke aas-paas':'ho chuka'))+' (est.)';
   $('#chip-fert').textContent = fmt(p.fertileA)+'\u2013'+p.fertileB.getDate()+' (est.)';
   $('#chip-cyc').textContent = '~'+p.avgR+' din';
+  const ln = $('#learn-note');
+  if(ln) ln.textContent = p.source==='logged'
+    ? 'Aapke pichhle '+p.count+' cycle'+(p.count>1?'s':'')+' se seekha (avg '+p.avg+' din)'+(p.dropped?' \u00b7 '+p.dropped+' unusual cycle skip kiya':'')+' \u2014 jitna data, utna accurate'
+    : 'Abhi aapki entered average ('+(S.avgCycle||28)+' din) se estimate \u2014 periods log karo, app seekhti jayegi';
   // reminder notice
   const nb = $('#notice-bar');
-  if(p.daysLeft>0 && p.daysLeft<=S.reminderDays){ nb.style.display='flex'; $('#notice-text').textContent = 'Reminder: period ~'+p.daysLeft+' din me expected hai. Pads/essentials ready rakho.'; }
+  if(S.reminders && p.daysLeft>=0 && p.daysLeft<=Math.min(2,S.reminderDays)){ nb.style.display='flex'; $('#notice-text').textContent = reminderText(-Math.max(0,p.daysLeft),p); }
   else nb.style.display='none';
   const inotes = irregularNote();
   const ic = $('#irreg-card');
@@ -283,7 +385,11 @@ function renderCalendar(){
   renderInsights();
   // cycle history
   const p = predict();
-  const hist = $('#cal-history'); hist.innerHTML='<h4 style="padding:14px 16px 4px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--faint)">Cycle history</h4>';
+  const cn = $('#cal-note');
+  if(cn) cn.textContent = p.source==='logged'
+    ? 'Aapke pichhle '+p.count+' cycle'+(p.count>1?'s':'')+' se seekha (avg '+p.avg+' din) \u00b7 prediction: '+p.confidence.label+(p.dropped?' \u00b7 '+p.dropped+' unusual cycle skip kiya':'')
+    : 'Abhi default average se estimate \u2014 jitna log karogi, utna accurate hoga';
+  const hist = $('#cal-history'); hist.innerHTML='<h4 style="padding:14px 16px 4px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--faint)">Cycle history'+(p.source==='logged'?' \u00b7 seekha: '+p.avg+' din avg (aapne '+(S.avgCycle||28)+' bola tha)':'')+'</h4>';
   const starts = p.starts.slice(-6).reverse();
   if(starts.length===0){ hist.innerHTML += '<div class="hist-row"><span class="s">Abhi koi cycle logged nahi hai</span></div>'; }
   starts.forEach((st,i)=>{
@@ -415,6 +521,7 @@ function speakToggle(text, btn){
     u.onerror=function(){ clearSpeakUI(btn); };
     setSpeakingUI(btn);
     window.speechSynthesis.speak(u);
+    setTimeout(function(){ try{ if(speakingBtn===btn && !window.speechSynthesis.speaking && !window.speechSynthesis.pending && (window.speechSynthesis.getVoices()||[]).length===0){ clearSpeakUI(btn); toast('Is device pe voice available nahi - Android app try karo'); } }catch(e){} },900);
     return;
   }
   toast('Is device/browser me voice feature nahi hai');
@@ -475,7 +582,7 @@ function renderLibrary(){
     lastCat=a.cat;
     el.innerHTML += head+'<div class="tipitem" style="display:block"><div class="libhead" onclick="toggleLib('+i+')"><h4>'+a.t+'</h4><div class="acts"><button class="tts-mini" data-li="'+i+'" aria-label="Suno">'+SPK_SVG+'</button><span id="lib-arrow-'+i+'" style="color:var(--primary);font-weight:800">+</span></div></div><p id="lib-'+i+'" style="display:none;margin-top:8px">'+a.c+'</p></div>';
   });
-  $$('#lib-list .tts-mini').forEach(b=>{ const a=LIBRARY[+b.dataset.li]; b.onclick=function(ev){ ev.stopPropagation(); speakToggle(a.t+'. '+a.c, b); }; });
+  $$('#lib-list .tts-mini').forEach(b=>{ const a=LIBRARY[+b.dataset.li]; b.onclick=function(ev){ ev.stopPropagation(); speakToggle(a.t+'. '+a.c, b); }; b.oncontextmenu=ttsDebug; });
 }
 function toggleLib(i){
   const p = document.getElementById('lib-'+i), a = document.getElementById('lib-arrow-'+i);
@@ -553,7 +660,7 @@ function renderTips(){
   lib.slice(0,8).forEach((t,i)=>{
     list.innerHTML += '<div class="tipitem"><div class="ic" style="background:'+t.bg+'">'+t.icon+'</div><div style="flex:1"><h4>'+t.title+'</h4><p>'+t.body+'</p></div><button class="tts-mini" data-ti="'+i+'" aria-label="Suno">'+SPK_SVG+'</button></div>';
   });
-  $$('#tip-list .tts-mini').forEach(b=>{ const t=lib[+b.dataset.ti]; b.onclick=function(){ speakToggle(t.title+'. '+t.body, b); }; });
+  $$('#tip-list .tts-mini').forEach(b=>{ const t=lib[+b.dataset.ti]; b.onclick=function(){ speakToggle(t.title+'. '+t.body, b); }; b.oncontextmenu=ttsDebug; });
 }
 function buildTipLib(){
   const I = {
@@ -613,6 +720,9 @@ function renderSettings(){
   $('#sw-theme').classList.toggle('on', S.theme==='dark');
   $('#sw-teen').classList.toggle('on', !!S.teenMode);
   $('#sw-disguise').classList.toggle('on', !!S.disguise);
+  const sr=$('#sw-remind'); if(sr) sr.classList.toggle('on', !!S.reminders);
+  const rt=$('#set-remtime'); if(rt) rt.value=S.reminderTime||'09:00';
+  const rn=$('#remind-note'); if(rn) rn.textContent = window.AndroidReminders ? 'Subah '+(S.reminderTime||'09:00')+' pe: 2 din pehle, 1 din pehle, aur period wale din - sab anumaan ke saath' : 'Web pe reminders sirf app open hone pe banner dikhte hain. Pakke background alerts ke liye Android app install karo.';
   $('#pin-status').textContent = S.pin ? 'PIN set hai' : 'PIN nahi hai';
 }
 function bindSettings(){
@@ -624,6 +734,8 @@ function bindSettings(){
   $('#set-remind').onchange = e=>{ S.reminderDays=parseInt(e.target.value)||2; save(); };
   $('#sw-theme').onclick = ()=>{ S.theme = S.theme==='dark'?'light':'dark'; applyTheme(); save(); renderSettings(); };
   $('#sw-teen').onclick = ()=>{ S.teenMode=!S.teenMode; save(); renderSettings(); toast(S.teenMode?'Teen mode on \u2014 simple language + teen tips':'Teen mode off'); };
+  $('#sw-remind').onclick = ()=>{ if(S.reminders) disableReminders(); else enableReminders(); };
+  $('#set-remtime').onchange = e=>{ S.reminderTime=e.target.value||'09:00'; save(); toast('Reminder time '+(S.reminderTime)+' set'); };
   $('#sw-disguise').onclick = ()=>{ S.disguise=!S.disguise; applyDisguise(); save(); renderSettings(); toast(S.disguise?'Disguise on \u2014 lock screen calculator dikhegi':'Disguise off'); };
   $('#btn-setpin').onclick = ()=>{
     const v = $('#set-pin').value.trim();

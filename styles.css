@@ -197,3 +197,7 @@ body.calc-mode .calc button[style*="color:var(--primary)"]{color:#FF9F2E !import
 .cal-day.p-period.far{opacity:.55}
 .legend i.pred{background:var(--primary-soft);border:1.5px dashed var(--primary);width:8px;height:8px}
 .legend i.td{background:transparent;border:2px solid var(--primary);width:8px;height:8px}
+
+/* learning visibility notes */
+.learn-note{margin-top:8px;font-size:11px;line-height:1.5;color:var(--muted);font-weight:600}
+.cal-note{margin-top:8px;font-size:10.5px;line-height:1.5;color:var(--muted);text-align:center;font-weight:600;padding:0 8px}

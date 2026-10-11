@@ -105,6 +105,7 @@
         <h2 id="home-next"></h2>
         <div class="sub" id="home-next-sub"></div>
         <span class="range-pill" id="range-pill"></span>
+        <div class="learn-note" id="learn-note"></div>
       </div>
     </div>
     <div class="chips">
@@ -159,6 +160,7 @@
         <span><i style="background:#F5C86B"></i> PMS</span>
         <span><i class="td"></i> Aaj</span>
       </div>
+      <div class="cal-note" id="cal-note"></div>
     </div>
     <div class="hist-card" id="insights-card"></div>
     <div class="hist-card" id="cal-history"></div>
@@ -192,7 +194,7 @@
       <p id="bigtip-text" style="font-size:14.5px"></p>
       <div class="row">
         <button class="btn" id="ai-tip-btn" onclick="aiTip()">Naya AI tip</button>
-        <button class="btn alt tts-big" id="tip-tts-btn" onclick="speakToggle(document.getElementById('bigtip-text').textContent,this)" aria-label="Tip suno"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg> Suno</button>
+        <button class="btn alt tts-big" id="tip-tts-btn" onclick="speakToggle(document.getElementById('bigtip-text').textContent,this)" oncontextmenu="return ttsDebug(event)" aria-label="Tip suno"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg> Suno</button>
       </div>
     </div>
     <div class="tipcat" id="tip-cats"></div>
@@ -212,6 +214,8 @@
       <div class="set-row"><div>Period length<div class="s">din me (2-10)</div></div><input id="set-plen" type="number" min="2" max="10" style="width:70px"></div>
       <div class="set-row"><div>Last period start</div><input id="set-lastp" type="date" style="width:150px"></div>
       <div class="set-row"><div>Period reminder<div class="s">itne din pehle yaad dilaye</div></div><input id="set-remind" type="number" min="1" max="7" style="width:70px"></div>
+      <div class="set-row"><div>Notifications<div class="s" id="remind-note"></div></div><button class="switch" id="sw-remind"></button></div>
+      <div class="set-row"><div>Reminder time<div class="s">subah kaunse time aaye</div></div><input id="set-remtime" type="time" value="09:00" style="width:110px"></div>
     </div>
     <div class="set-card">
       <h4>Privacy &amp; Security</h4>
