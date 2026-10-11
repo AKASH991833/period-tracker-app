@@ -4,8 +4,8 @@
 const LS_KEY = 'gulabi_data_v1';
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
-const GTTS_BUILTIN_KEY='';  // APK build injects personal key here; public site/repo stays empty
-function activeGeminiKey(){ return S.geminiKey || GTTS_BUILTIN_KEY; }
+const PROXY_URL='https://ptracker-proxy.vercel.app';  // free Vercel proxy - Gemini key server-side only, kabhi app/site me nahi
+function activeGeminiKey(){ return S.geminiKey || ''; }  // optional: user apni key paste kare to direct bhi chal sakta hai
 
 const DEFAULT_STATE = {
   onboarded: false, name: '', avgCycle: 28, periodLen: 5, lastPeriod: '',
@@ -529,24 +529,34 @@ function idbOpen(){ return new Promise((res,rej)=>{ try{ const r=indexedDB.open(
 async function idbGet(k){ try{ const db=await idbOpen(); return await new Promise((res,rej)=>{ const q=db.transaction('audio').objectStore('audio').get(k); q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error||new Error('idb')); }); }catch(e){ return null; } }
 async function idbPut(k,v){ try{ const db=await idbOpen(); await new Promise((res,rej)=>{ const q=db.transaction('audio','readwrite').objectStore('audio').put(v,k); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error||new Error('idb')); }); }catch(e){} }
 async function geminiTtsFetch(text){
-  const key=activeGeminiKey(); if(!key) throw new Error('no key');
-  const res=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+  if(S.geminiKey){
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':S.geminiKey},
+      body:JSON.stringify({
+        model:GTTS_MODEL,
+        input:[{type:'user_input',content:[{type:'text',text:text,annotations:[{type:'speech_metadata',style:'warm, friendly and natural, like a caring elder sister speaking Hinglish'}]}]}],
+        response_format:{type:'audio'},
+        generation_config:{speech_config:[{voice:GTTS_VOICE}]}
+      })
+    });
+    if(!res.ok){ const e=new Error('gtts http '+res.status); e.status=res.status; throw e; }
+    const j=await res.json();
+    let b64=null;
+    try{ const steps=j.steps||[]; for(const st of steps){ if(st.type!=='model_output') continue; for(const c of (st.content||[])){ if(c.type==='audio'&&c.data) b64=c.data; } } }catch(e){}
+    if(!b64 && j.output_audio && j.output_audio.data) b64=j.output_audio.data;
+    if(!b64){ const e=new Error('gtts empty'); e.status=0; throw e; }
+    return b64;
+  }
+  const res=await fetch(PROXY_URL+'/api/tts',{
     method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':key},
-    body:JSON.stringify({
-      model:GTTS_MODEL,
-      input:[{type:'user_input',content:[{type:'text',text:text,annotations:[{type:'speech_metadata',style:'warm, friendly and natural, like a caring elder sister speaking Hinglish'}]}]}],
-      response_format:{type:'audio'},
-      generation_config:{speech_config:[{voice:GTTS_VOICE}]}
-    })
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:text})
   });
-  if(!res.ok){ const e=new Error('gtts http '+res.status); e.status=res.status; throw e; }
+  if(!res.ok){ const e=new Error('proxy http '+res.status); e.status=res.status; throw e; }
   const j=await res.json();
-  let b64=null;
-  try{ const steps=j.steps||[]; for(const st of steps){ if(st.type!=='model_output') continue; for(const c of (st.content||[])){ if(c.type==='audio'&&c.data) b64=c.data; } } }catch(e){}
-  if(!b64 && j.output_audio && j.output_audio.data) b64=j.output_audio.data;
-  if(!b64){ const e=new Error('gtts empty'); e.status=0; throw e; }
-  return b64;
+  if(!j||!j.audio){ const e=new Error('proxy empty'); e.status=0; throw e; }
+  return j.audio;
 }
 function b64ToArrayBuffer(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u.buffer; }
 function pcm16ToBuffer(ctx,ab,rate){ const dv=new DataView(ab); const len=Math.floor(ab.byteLength/2); const buf=ctx.createBuffer(1,len,rate||24000); const ch=buf.getChannelData(0); for(let i=0;i<len;i++){ ch[i]=dv.getInt16(i*2,true)/32768; } return buf; }
@@ -556,9 +566,8 @@ async function gttsDecode(ctx,ab){
 }
 function chooseVoicePath(){
   if(S.naturalVoice===false) return 'device';
-  if(!activeGeminiKey()) return 'device';
   if(typeof navigator!=='undefined' && navigator.onLine===false) return 'device';
-  return 'natural';
+  return 'natural';  // proxy natural voice sabke liye - key ki zaroorat nahi
 }
 async function speakNatural(t, btn){
   gttsStop=false;
@@ -780,25 +789,33 @@ function hideAiConsent(){ const m=$('#ai-consent'); if(m) m.style.display='none'
 function aiConsentYes(){ S.aiConsent=true; save(); hideAiConsent(); aiTip(); }
 async function aiTip(){
   const btn = $('#ai-tip-btn');
-  if(!activeGeminiKey()){ toast('Settings me Gemini API key add karo'); location.hash='#/settings'; return; }
   if(!S.aiConsent){ showAiConsent(); return; }
   btn.textContent = 'Soch raha hai...'; btn.disabled = true;
   const p = predict();
   const recentSym = Object.keys(S.logs).sort().slice(-7).flatMap(d=>S.logs[d].symptoms||[]);
-  const prompt = 'You are a warm, caring women\'s health assistant inside a period tracker app for a young Indian woman. Give ONE short practical health tip (2-3 sentences) in simple Hinglish (Roman Hindi + English mix). Context: cycle day '+p.cycleDay+' of ~'+p.avgR+', next period in '+p.daysLeft+' days, phase: '+phaseOf(p)+'. Recent symptoms logged: '+(recentSym.length?recentSym.join(', '):'none')+'. Focus: '+tipCat+'. Be encouraging, never medical-diagnosis. No markdown.';
   try{
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(S.geminiKey),{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
-    });
-    const data = await res.json();
-    const txt = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
-    if(txt){ $('#bigtip-text').textContent = txt.trim(); toast('Naya AI tip ready'); }
+    let txt = null;
+    if(S.geminiKey){
+      const prompt = 'You are a warm, caring women\'s health assistant inside a period tracker app for a young Indian woman. Give ONE short practical health tip (2-3 sentences) in simple Hinglish (Roman Hindi + English mix). Context: cycle day '+p.cycleDay+' of ~'+p.avgR+', next period in '+p.daysLeft+' days, phase: '+phaseOf(p)+'. Recent symptoms logged: '+(recentSym.length?recentSym.join(', '):'none')+'. Focus: '+tipCat+'. Be encouraging, never medical-diagnosis. No markdown.';
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key='+encodeURIComponent(S.geminiKey),{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+      });
+      const data = await res.json();
+      txt = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
+    } else {
+      const res = await fetch(PROXY_URL+'/api/tip',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({cycleDay:p.cycleDay, avg:p.avgR, daysLeft:p.daysLeft, phase:phaseOf(p), symptoms:recentSym.slice(0,10), cat:tipCat})
+      });
+      const data = await res.json();
+      txt = data && data.tip;
+    }
+    if(txt){ $('#bigtip-text').textContent = String(txt).trim(); toast('Naya AI tip ready'); }
     else { $('#bigtip-text').textContent = localTip(p); toast('AI busy hai \u2014 offline tip diya'); }
   }catch(e){ $('#bigtip-text').textContent = localTip(p); toast('Internet nahi \u2014 offline tip diya'); }
   btn.textContent = 'Naya AI tip'; btn.disabled = false;
 }
-
 /* ---------------- SETTINGS ---------------- */
 function renderSettings(){
   $('#set-name').value = S.name||'';
@@ -806,7 +823,7 @@ function renderSettings(){
   $('#set-plen').value = S.periodLen;
   $('#set-lastp').value = S.lastPeriod||'';
   $('#set-key').value = S.geminiKey||'';
-  try{ $('#set-key').placeholder = GTTS_BUILTIN_KEY ? 'Built-in key active hai' : 'AIza...'; }catch(e){}
+  try{ $('#set-key').placeholder = 'Optional - proxy built-in hai'; }catch(e){}
   $('#set-remind').value = S.reminderDays;
   $('#sw-theme').classList.toggle('on', S.theme==='dark');
   $('#sw-teen').classList.toggle('on', !!S.teenMode);
