@@ -50,9 +50,10 @@ function periodStarts(){
     if(!prev || diffDays(prev,d) > 1) starts.push(d);
     prev = d;
   }
-  if(S.lastPeriod && (starts.length===0 || toStr(starts[starts.length-1])!==S.lastPeriod)){
+  if(S.lastPeriod){
     const lp = fromStr(S.lastPeriod);
-    if(starts.length===0 || diffDays(starts[starts.length-1], lp) > 1) starts.push(lp);
+    // include onboarding start unless a logged start already covers it (any order)
+    if(!starts.some(st => Math.abs(diffDays(st, lp)) <= 1)) starts.push(lp);
   }
   starts.sort((a,b)=>a-b);
   return starts;
@@ -74,9 +75,7 @@ function predict(){
   const st = cycleStats();
   const today = stripTime(new Date());
   let lastStart = st.starts.length ? st.starts[st.starts.length-1] : fromStr(S.lastPeriod);
-  let nextStart = addDays(lastStart, st.avgR);
-  let guard=0;
-  while(diffDays(today, nextStart) < -1 && guard++<24){ lastStart = nextStart; nextStart = addDays(nextStart, st.avgR); }
+  const nextStart = addDays(lastStart, st.avgR); // late period: estimate stays until user logs - no silent shift
   const cycleDay = diffDays(lastStart, today)+1;
   const daysLeft = diffDays(today, nextStart);
   const ovu = addDays(nextStart,-14);
@@ -86,9 +85,10 @@ function predict(){
 }
 function dayStatus(ds){ // returns set of flags for a date string
   const d = fromStr(ds), p = predict();
-  const f = {period:false, pPeriod:false, fertile:false, ovu:false, today: ds===todayStr(), pms:false};
+  const f = {period:false, pPeriod:false, fertile:false, ovu:false, today: ds===todayStr(), pms:false, spotting:false};
   const log = S.logs[ds];
   if(log && (log.flow==='light'||log.flow==='medium'||log.flow==='heavy')) f.period = true;
+  if(log && log.flow==='spotting') f.spotting = true;
   // predicted period days (next 2 predicted windows)
   let ns = p.nextStart;
   for(let k=0;k<2;k++){
@@ -147,18 +147,18 @@ function renderHome(){
   const fmt = d => d.getDate()+' '+HI_MONTHS[d.getMonth()];
   if(p.daysLeft > 0){
     $('#home-next').textContent = 'Agla period ~'+p.daysLeft+' din me';
-    $('#home-next-sub').textContent = 'Lagbhag '+fmt(p.nextStartRange[0])+' \u2013 '+fmt(p.nextStartRange[1])+' ke beech. Jitna zyada log karogi, utna accurate hoga.';
+    $('#home-next-sub').textContent = 'Expected start: '+fmt(p.nextStart)+' (\u00b1'+p.unc+' din ka range: '+fmt(p.nextStartRange[0])+' \u2013 '+fmt(p.nextStartRange[1])+'). Calendar pe bhi yahi date hai. Jitna zyada log karogi, utna accurate hoga.';
   } else if(p.daysLeft===0){
     $('#home-next').textContent = 'Period aaj expected hai';
     $('#home-next-sub').textContent = 'Aaj ya agle 1\u20132 din me aa sakta hai. Log karna na bhoolo.';
   } else {
     $('#home-next').textContent = 'Period ' + Math.abs(p.daysLeft) + ' din late lag raha hai';
-    $('#home-next-sub').textContent = 'Late ho toh bhi normal ho sakta hai \u2014 stress, travel, diet sab affect karta hai. Period aaye toh log karo.';
+    $('#home-next-sub').textContent = 'Late hona kabhi kabhi normal hai \u2014 stress, travel, diet sab affect karta hai. App khud dates shift nahi karta: jab period aaye, log karo, tab estimate update hogi. 2+ hafte late ho toh doctor se mil lena.';
   }
-  $('#range-pill').textContent = '\u00b1'+p.unc+' din ka range \u00b7 '+(p.source==='logged'? p.count+' cycle ka data':'default estimate');
+  $('#range-pill').textContent = '\u00b1'+p.unc+' din ka range \u00b7 '+(p.source==='logged'? (p.count<2 ? 'sirf '+p.count+' cycle ka data \u2014 rough estimate' : p.count+' cycles ka data') : 'default estimate \u2014 rough');
   const ovuD = diffDays(today, p.ovu);
-  $('#chip-ovu').textContent = ovuD>0 ? '~'+ovuD+' din baad' : (ovuD===0?'aaj ke aas-paas':'ho chuka');
-  $('#chip-fert').textContent = fmt(p.fertileA)+'\u2013'+p.fertileB.getDate();
+  $('#chip-ovu').textContent = (ovuD>0 ? '~'+ovuD+' din baad' : (ovuD===0?'aaj ke aas-paas':'ho chuka'))+' (est.)';
+  $('#chip-fert').textContent = fmt(p.fertileA)+'\u2013'+p.fertileB.getDate()+' (est.)';
   $('#chip-cyc').textContent = '~'+p.avgR+' din';
   // reminder notice
   const nb = $('#notice-bar');
@@ -196,8 +196,8 @@ function phaseOf(p){
 }
 const TIPS = {
   period:[
-    'Heating pad ya garam paani ki bottle pet pe rakho \u2014 cramps me turant rahat milti hai.',
-    'Halki stretching ya 10 min walk se blood flow better hota hai aur cramps kam lagte hain.',
+    'Heating pad ya garam paani ki bottle pet pe rakho \u2014 bahut se logon ko cramps me turant rahat milti hai.',
+    'Halki stretching ya 10 min walk se kai logon ko cramps kam lagte hain.',
     'Iron-rich khana khao: palak, chana, dates \u2014 period me iron kam hota hai.',
     'Caffeine thoda kam karo, gunguna paani ya ajwain ka paani zyada piyo.',
     'Rest ka poora haq hai \u2014 aaj body ko dheere chalne do.'
@@ -263,7 +263,8 @@ function renderCalendar(){
     if(f.period) cls+=' period'; else if(f.ovu) cls+=' ovu'; else if(f.pPeriod) cls+=' p-period';
     if(f.today) cls+=' today';
     let dot='';
-    if(f.fertile && !f.period && !f.ovu) dot='<span class="dot" style="background:#D9B8EC"></span>';
+    if(f.spotting) dot='<span class="dot" style="background:#C4756B"></span>';
+    else if(f.fertile && !f.period && !f.ovu) dot='<span class="dot" style="background:#D9B8EC"></span>';
     else if(f.pms) dot='<span class="dot" style="background:#F5C86B"></span>';
     else dot='<span class="dot" style="background:transparent"></span>';
     grid.innerHTML += '<button class="'+cls+'" onclick="openDay(\''+ds+'\')">'+d+dot+'</button>';
@@ -323,11 +324,11 @@ function renderReport(){
   const fmt = d => d.getDate()+' '+HI_MONTHS[d.getMonth()]+' '+d.getFullYear();
   $('#rep-date').textContent = 'Generated: '+fmt(new Date());
   $('#rep-summary').innerHTML =
-    '<div class="rep-grid"><div><b>'+p.count+'</b><span>logged cycles</span></div>'+
-    '<div><b>~'+p.avgR+' din</b><span>avg cycle</span></div>'+
-    '<div><b>'+(S.periodLen||5)+' din</b><span>avg period</span></div>'+
-    '<div><b>\u00b1'+p.sd+' din</b><span>variation</span></div></div>';
-  const reg = p.count<2 ? 'Abhi data kam hai \u2014 2-3 cycles ke baad pattern clear hoga.' : (p.sd>=7 ? 'Cycles irregular lag rahe hain (variation zyada).' : 'Cycles regular range me hain.');
+    '<div class="rep-grid"><div><b>'+p.starts.length+'</b><span>period starts logged</span></div>'+
+    '<div><b>'+p.lens.length+'</b><span>completed cycles</span></div>'+
+    '<div><b>~'+p.avgR+' din'+(p.source==='logged'?'':'*')+'</b><span>avg cycle'+(p.source==='logged'?'':' (estimate)')+'</span></div>'+
+    '<div><b>'+(p.lens.length>=2 ? '\u00b1'+p.sd+' din' : '\u2014')+'</b><span>variation'+(p.lens.length>=2?'':' (not enough data)')+'</span></div></div>';
+  const reg = p.lens.length<2 ? 'Not enough data \u2014 variation ke liye kam se kam 2 completed cycles chahiye.' : (p.sd>=7 ? 'Cycles irregular lag rahe hain (variation zyada) \u2014 doctor se discuss karna useful ho sakta hai.' : 'Cycles typical range me lag rahe hain.');
   $('#rep-reg').textContent = reg;
   const notes = irregularNote();
   $('#rep-flags').innerHTML = notes.length ? '<b>Notes for doctor:</b><ul style="margin:6px 0 0 18px">'+notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>' : '';
@@ -350,9 +351,9 @@ function printReport(){ window.print(); }
 
 /* ---------------- HEALTH LIBRARY ---------------- */
 const LIBRARY = [
- {t:'Period 101: kya hota hai?', c:'Har month uterus apni lining banata hai possible pregnancy ke liye. Jab pregnancy nahi hoti, lining bahar nikalti hai \u2014 yehi period hai. 21-35 din ka cycle normal hai. Pehle 1-2 saal (teen years) me irregular hona bilkul normal hai.'},
- {t:'Cramps kyon hote hain?', c:'Prostaglandins naam ke chemicals uterus ko contract karwate hain \u2014 isi se cramps. Heat (hot water bag), halka exercise, ajwain/adrak wala garam paani, aur magnesium-rich khana (nuts, banana, dark chocolate) sabse effective hain. Bahut zyada dard ho jo kaam na karne de, toh doctor se milein \u2014 endometriosis jaise reasons ho sakte hain.'},
- {t:'PMS samjho', c:'Period se 5-7 din pehle mood swings, bloating, cravings, irritability \u2014 ye PMS hai, hormones ki wajah se. Regular sleep, kam namkeen/caffeine, complex carbs aur halka exercise se 50-70% tak relief milta hai. PMDD (bahut severe PMS) ho toh doctor se baat karo.'},
+ {t:'Period 101: kya hota hai?', c:'Har month uterus apni lining banata hai possible pregnancy ke liye. Jab pregnancy nahi hoti, lining bahar nikalti hai \u2014 yehi period hai. 21-35 din typical range hai, lekin thoda upar-neeche bhi normal ho sakta hai \u2014 har body alag hai. Pehle 1-2 saal (teen years) me irregular hona bilkul normal hai.'},
+ {t:'Cramps kyon hote hain?', c:'Prostaglandins naam ke chemicals uterus ko contract karwate hain \u2014 isi se cramps. Heat (hot water bag), halka exercise, ajwain/adrak wala garam paani aur magnesium-rich khana (nuts, banana, dark chocolate) se kai logon ko relief milta hai. Bahut zyada dard ho jo kaam na karne de, toh doctor se milein \u2014 endometriosis jaise reasons ho sakte hain.'},
+ {t:'PMS samjho', c:'Period se 5-7 din pehle mood swings, bloating, cravings, irritability \u2014 ye PMS hai, hormones ki wajah se. Regular sleep, kam namkeen/caffeine, complex carbs aur halka exercise se kai logon ko noticeable relief milta hai \u2014 har body alag hoti hai. PMDD (bahut severe PMS) ho toh doctor se baat karo.'},
  {t:'Hygiene basics', c:'Pad har 4-6 ghante me badlo, menstrual cup 8-12 ghante me. Hamesha front-to-back wipe. Scented products avoid karo \u2014 vagina self-cleaning hoti hai. Itching, unusual discharge ya badbu ho toh doctor se milein.'},
  {t:'Irregular cycles & PCOS signs', c:'Cycle 35+ din ka ho, mahine skip ho, ya bahut heavy bleeding ho \u2014 common causes: stress, thyroid, PCOS, weight change. PCOS ke signs: irregular periods + acne/facial hair + weight gain. 2-3 mahine irregular rahe toh gynecologist visit karo \u2014 early checkup se sab manageable hai.'},
  {t:'Kab doctor se milna chahiye (warning signs)', c:'Ye signs ho toh doctor visit delay mat karo: (1) 3+ mahine period na aaye (pregnancy nahi hai toh bhi), (2) bleeding 7+ din chale ya bahut heavy ho (1-2 ghante me pad bhare), (3) periods ke beech bleeding, (4) severe pain jo normal na lage, (5) fever ke saath period symptoms, (6) unusual discharge ya smell.'},
@@ -375,7 +376,7 @@ function calNav(n){ calCursor.setMonth(calCursor.getMonth()+n); renderCalendar()
 /* ---------------- LOG ---------------- */
 const SYMPTOMS=['Cramps','Headache','Bloating','Backache','Fatigue','Acne','Nausea','Breast pain','Mood swings','Cravings','Dizziness','Insomnia'];
 const MOODS=[['Happy','#F5C86B'],['Calm','#7FC8A9'],['Sad','#8FA8D8'],['Irritated','#F08668'],['Anxious','#B07FD4'],['Energetic','#FFB347'],['Tired','#9BA7B4'],['Romantic','#F470A3']];
-const FLOWS=[['light','Light'],['medium','Medium'],['heavy','Heavy']];
+const FLOWS=[['spotting','Spotting'],['light','Light'],['medium','Medium'],['heavy','Heavy']];
 function renderLog(){
   const d = fromStr(logDate);
   $('#log-date-title').textContent = prettyDate(d);
@@ -451,13 +452,13 @@ function buildTipLib(){
     heart:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E2548A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.7-9.5-9C1 8.5 3 5 6.5 5c2.2 0 3.9 1.3 5.5 3.4C13.6 6.3 15.3 5 17.5 5 21 5 23 8.5 21.5 12c-2 4.3-9.5 9-9.5 9z"/></svg>'
   };
   return [
-    {cat:'cramps',icon:I.drop,bg:'var(--primary-soft)',title:'Garam seko',body:'Heating pad ya garam paani ki bottle lower abdomen pe 15-20 min rakho. Heat muscles ko relax karti hai \u2014 cramps me sabse effective home remedy.'},
-    {cat:'cramps',icon:I.drop,bg:'var(--primary-soft)',title:'Ajwain ka paani',body:'1 chammach ajwain garam paani me ubal ke piyo. Traditional remedy jo gas aur cramps dono me relief deti hai.'},
+    {cat:'cramps',icon:I.drop,bg:'var(--primary-soft)',title:'Garam seko',body:'Heating pad ya garam paani ki bottle lower abdomen pe 15-20 min rakho. Heat muscles ko relax karti hai \u2014 bahut se logon ko cramps me isi se sabse zyada relief milta hai.'},
+    {cat:'cramps',icon:I.drop,bg:'var(--primary-soft)',title:'Ajwain ka paani',body:'1 chammach ajwain garam paani me ubal ke piyo. Traditional remedy \u2014 kai logon ko gas aur cramps me is se relief milta hai.'},
     {cat:'cramps',icon:I.drop,bg:'var(--primary-soft)',title:'Child pose (yoga)',body:'Balasana 2-3 min \u2014 lower back aur abdomen ki tension release hoti hai. Din me 2-3 baar karo.'},
-    {cat:'diet',icon:I.food,bg:'var(--orange-soft)',title:'Iron wapas lao',body:'Period me blood loss se iron kam hota hai. Palak, chana, jaggery, dates khao \u2014 weakness aur fatigue kam hogi.'},
-    {cat:'diet',icon:I.food,bg:'var(--orange-soft)',title:'Magnesium = less cramps',body:'Dark chocolate, banana, nuts, seeds me magnesium hai jo cramp intensity kam karta hai (research-backed).'},
+    {cat:'diet',icon:I.food,bg:'var(--orange-soft)',title:'Iron wapas lao',body:'Period me blood loss se iron kam ho sakta hai. Palak, chana, jaggery, dates khaane se kai logon ko weakness kam feel hoti hai.'},
+    {cat:'diet',icon:I.food,bg:'var(--orange-soft)',title:'Magnesium = less cramps',body:'Dark chocolate, banana, nuts, seeds me magnesium hai \u2014 kai studies me ise kam cramps se joda gaya hai, har kisi pe same effect nahi hota.'},
     {cat:'diet',icon:I.food,bg:'var(--orange-soft)',title:'Namkeen kam, paani zyada',body:'Zyada salt se bloating badhti hai. PMS week me namkeen kam aur 8-10 glass paani rakho.'},
-    {cat:'exercise',icon:I.run,bg:'var(--green-soft)',title:'Period me bhi halka exercise',body:'Heavy workout nahi, but 15-20 min walk ya light yoga se endorphins release hote hain \u2014 natural painkiller.'},
+    {cat:'exercise',icon:I.run,bg:'var(--green-soft)',title:'Period me bhi halka exercise',body:'Heavy workout zaroori nahi, lekin 15-20 min walk ya light yoga se kai logon ko relief milta hai (endorphins \u2014 natural feel-good chemicals).'},
     {cat:'exercise',icon:I.run,bg:'var(--green-soft)',title:'Follicular phase = power week',body:'Period ke baad wala week energy ka peak hai. Strength training ya naya workout isi week try karo.'},
     {cat:'sleep',icon:I.moon,bg:'var(--purple-soft)',title:'7-8 ghante ki neend',body:'Sleep kam hone se PMS aur cramps dono zyada feel hote hain. Period week me 30 min extra sleep lo.'},
     {cat:'sleep',icon:I.moon,bg:'var(--purple-soft)',title:'Phone 30 min pehle band',body:'Screen light se melatonin kam hota hai. Sone se pehle half hour no-phone rakho, neend deep hogi.'},

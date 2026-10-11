@@ -58,7 +58,7 @@
         <input id="ob-name" type="text" placeholder="Jaise: Priya" maxlength="20">
         <label>Pichla period kab shuru hua tha?</label>
         <input id="ob-lastp" type="date">
-        <label>Cycle kitne din ka hota hai? (average)</label>
+        <label>Cycle kitne din ka hota hai? (average — typically 21-35 din, par har body alag hai)</label>
         <input id="ob-cycle" type="number" value="28" min="20" max="45">
         <label>Period kitne din rehta hai?</label>
         <input id="ob-plen" type="number" value="5" min="2" max="10">
@@ -100,10 +100,11 @@
       </div>
     </div>
     <div class="chips">
-      <div class="chip"><div class="t" style="color:var(--purple)">Ovulation</div><div class="v" id="chip-ovu"></div></div>
-      <div class="chip"><div class="t" style="color:var(--orange)">Fertile</div><div class="v" id="chip-fert"></div></div>
+      <div class="chip"><div class="t" style="color:var(--purple)">Ovulation (est.)</div><div class="v" id="chip-ovu"></div></div>
+      <div class="chip"><div class="t" style="color:var(--orange)">Fertile (est.)</div><div class="v" id="chip-fert"></div></div>
       <div class="chip"><div class="t" style="color:var(--primary)">Cycle</div><div class="v" id="chip-cyc"></div></div>
     </div>
+    <p style="padding:8px 24px 0;font-size:10.5px;line-height:1.5;color:var(--muted);margin:0">Ovulation aur fertile dates sirf estimates hain, confirmed nahi. Pregnancy plan ya prevention ke liye is app pe rely mat karo.</p>
     <div class="section">
       <h3>Aaj ka log</h3>
       <div class="log-row">
@@ -197,7 +198,7 @@
     <div class="set-card">
       <h4>Profile &amp; Cycle</h4>
       <div class="set-row"><div>Naam</div><input id="set-name" type="text" placeholder="Optional" style="width:130px"></div>
-      <div class="set-row"><div>Average cycle<div class="s">din me (20-45)</div></div><input id="set-cycle" type="number" min="20" max="45" style="width:70px"></div>
+      <div class="set-row"><div>Average cycle<div class="s">20-45 ke beech daalo; typical 21-35, par range ke bahar bhi normal ho sakta hai</div></div><input id="set-cycle" type="number" min="20" max="45" style="width:70px"></div>
       <div class="set-row"><div>Period length<div class="s">din me (2-10)</div></div><input id="set-plen" type="number" min="2" max="10" style="width:70px"></div>
       <div class="set-row"><div>Last period start</div><input id="set-lastp" type="date" style="width:150px"></div>
       <div class="set-row"><div>Period reminder<div class="s">itne din pehle yaad dilaye</div></div><input id="set-remind" type="number" min="1" max="7" style="width:70px"></div>
