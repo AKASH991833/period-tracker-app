@@ -192,3 +192,8 @@ body.calc-mode .calc button[style*="color:var(--primary)"]{color:#FF9F2E !import
 .learncat{margin:18px 22px 2px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--primary)}
 .libhead{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
 .libhead .acts{display:flex;align-items:center;gap:8px;flex-shrink:0}
+
+/* calendar: estimate vs fact distinction + legend chips */
+.cal-day.p-period.far{opacity:.55}
+.legend i.pred{background:var(--primary-soft);border:1.5px dashed var(--primary);width:8px;height:8px}
+.legend i.td{background:transparent;border:2px solid var(--primary);width:8px;height:8px}

@@ -84,24 +84,29 @@ function predict(){
   const periodEnd = addDays(nextStart, (S.periodLen||5)-1);
   return {...st, lastStart, nextStart, nextStartRange:[addDays(nextStart,-st.unc), addDays(nextStart,st.unc)], cycleDay, daysLeft, ovu, fertileA, fertileB, periodEnd};
 }
+function futureCycles(n){ // centralized: next n predicted cycles; uncertainty widens honestly with distance
+  const p = predict(); const out=[];
+  let ns=p.nextStart, o=p.ovu, fa=p.fertileA, fb=p.fertileB;
+  for(let k=0;k<n;k++){
+    out.push({start:ns, end:addDays(ns,(S.periodLen||5)-1), unc:p.unc+k, ovu:o, fertileA:fa, fertileB:fb});
+    ns=addDays(ns,p.avgR); o=addDays(o,p.avgR); fa=addDays(fa,p.avgR); fb=addDays(fb,p.avgR);
+  }
+  return out;
+}
+const FUTURE_CYCLES = 6; // ~6 months of predicted marks
 function dayStatus(ds){ // returns set of flags for a date string
   const d = fromStr(ds), p = predict();
   const f = {period:false, pPeriod:false, fertile:false, ovu:false, today: ds===todayStr(), pms:false, spotting:false};
   const log = S.logs[ds];
   if(log && (log.flow==='light'||log.flow==='medium'||log.flow==='heavy')) f.period = true;
   if(log && log.flow==='spotting') f.spotting = true;
-  // predicted period days (next 2 predicted windows)
-  let ns = p.nextStart;
-  for(let k=0;k<2;k++){
-    const pe = addDays(ns,(S.periodLen||5)-1);
-    if(d>=addDays(ns,-0) && d<=pe) f.pPeriod = true;
-    ns = addDays(ns, p.avgR);
-  }
-  let o = p.ovu, fa = p.fertileA, fb = p.fertileB;
-  for(let k=0;k<2;k++){
-    if(toStr(d)===toStr(o)) f.ovu = true;
-    if(d>=fa && d<=fb && !f.ovu) f.fertile = true;
-    o = addDays(o,p.avgR); fa = addDays(fa,p.avgR); fb = addDays(fb,p.avgR);
+  // predicted marks (centralized, FUTURE_CYCLES ahead; far cycles marked lighter)
+  const fcy = futureCycles(FUTURE_CYCLES);
+  for(let k=0;k<fcy.length;k++){
+    const c = fcy[k];
+    if(d>=c.start && d<=c.end){ f.pPeriod = true; if(k>=2) f.pFar = true; }
+    if(toStr(d)===toStr(c.ovu)) f.ovu = true;
+    if(d>=c.fertileA && d<=c.fertileB && !f.ovu) f.fertile = true;
   }
   if(!f.period && !f.pPeriod && d>=addDays(p.nextStart,-5) && d<p.nextStart) f.pms = true;
   return f;
@@ -266,7 +271,7 @@ function renderCalendar(){
     const ds = toStr(new Date(y,m,d));
     const f = dayStatus(ds);
     let cls='cal-day';
-    if(f.period) cls+=' period'; else if(f.ovu) cls+=' ovu'; else if(f.pPeriod) cls+=' p-period';
+    if(f.period) cls+=' period'; else if(f.ovu) cls+=' ovu'; else if(f.pPeriod) cls+=' p-period'+(f.pFar?' far':'');
     if(f.today) cls+=' today';
     let dot='';
     if(f.spotting) dot='<span class="dot" style="background:#C4756B"></span>';
