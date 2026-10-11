@@ -198,7 +198,7 @@ function ttsDebug(ev){
     try{
       const st=JSON.parse(window.AndroidTTS.status());
       const sm={0:'load ho raha hai (1-2 sec ruko, phir dabao)',1:'READY',2:'FAILED - '+st.msg};
-      alert('Voice engine: '+(sm[st.state]||st.state)+'\n'+(st.engines?('Engines: '+st.engines):'')+(st.state!==1?'\nFix: Play Store se Speech Recognition & Synthesis (Google TTS) update/install karo, phir app band karke kholo.':''));
+      alert('Voice engine: '+(sm[st.state]||st.state)+'\n'+(st.engine?('Active engine: '+st.engine+'\n'):'')+(st.engines?('Installed: '+st.engines):'')+(st.state!==1?'\nFix: Play Store se Speech Recognition & Synthesis (Google TTS) update/install karo, phir app band karke kholo.':''));
     }catch(e){ alert('Voice status nahi mil paya'); }
   } else if('speechSynthesis' in window){
     const vs=window.speechSynthesis.getVoices()||[];
