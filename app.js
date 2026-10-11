@@ -734,6 +734,10 @@ function bindSettings(){
   $('#set-remind').onchange = e=>{ S.reminderDays=parseInt(e.target.value)||2; save(); };
   $('#sw-theme').onclick = ()=>{ S.theme = S.theme==='dark'?'light':'dark'; applyTheme(); save(); renderSettings(); };
   $('#sw-teen').onclick = ()=>{ S.teenMode=!S.teenMode; save(); renderSettings(); toast(S.teenMode?'Teen mode on \u2014 simple language + teen tips':'Teen mode off'); };
+  $('#btn-voicetest').onclick = ()=>{
+    if(window.AndroidTTS&&window.AndroidTTS.test){ try{ window.AndroidTTS.test(); }catch(e){ toast('Voice test fail - long-press Suno se status dekho'); } }
+    else { speakToggle('P Tracker ki voice theek hai!', $('#btn-voicetest')); }
+  };
   $('#sw-remind').onclick = ()=>{ if(S.reminders) disableReminders(); else enableReminders(); };
   $('#set-remtime').onchange = e=>{ S.reminderTime=e.target.value||'09:00'; save(); toast('Reminder time '+(S.reminderTime)+' set'); };
   $('#sw-disguise').onclick = ()=>{ S.disguise=!S.disguise; applyDisguise(); save(); renderSettings(); toast(S.disguise?'Disguise on \u2014 lock screen calculator dikhegi':'Disguise off'); };
